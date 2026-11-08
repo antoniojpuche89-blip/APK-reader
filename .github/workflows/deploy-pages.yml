@@ -27,6 +27,10 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Reassemble Lector beta archive
+        run: |
+          cat lector-beta1.part* | base64 --decode > lector-beta1.zip
+          unzip -tq lector-beta1.zip
       - name: Prepare Lector website
         run: |
           mkdir -p site
