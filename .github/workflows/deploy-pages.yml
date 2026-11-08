@@ -1,4 +1,4 @@
-name: Deploy Lextory Beta 5 to GitHub Pages
+name: Deploy Lextory Beta 5.2 multi-source catalogue to GitHub Pages
 
 on:
   push:
@@ -36,10 +36,11 @@ jobs:
           unzip -q lector-beta2.zip -d site
           cp -a lextory-beta3-overlay/. site/
           cat lextory-beta4-payload/overlay.part* | base64 -d | tar -xz -C site
-      - name: Apply Lextory Beta 5 dashboard and icon
+      - name: Apply Lextory Beta 5 dashboard, icon and multi-source catalogue
         run: |
           cp lextory-beta5/dashboard.css site/dashboard.css
           cp lextory-beta5/dashboard.js site/dashboard.js
+          cp lextory-beta5/catalog-universal.js site/catalog-universal.js
           cp lextory-beta5/icon.svg site/icon.svg
           cp lextory-beta5/manifest.webmanifest site/manifest.webmanifest
           cp lextory-beta5/sw.js site/sw.js
@@ -47,15 +48,26 @@ jobs:
           from pathlib import Path
           p = Path('site/index.html')
           s = p.read_text()
-          s = s.replace('<link rel="stylesheet" href="styles.css">', '<link rel="stylesheet" href="styles.css">\n  <link rel="stylesheet" href="dashboard.css">')
-          s = s.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n  <script src="dashboard.js"></script>')
+          if 'dashboard.css' not in s:
+              s = s.replace('<link rel="stylesheet" href="styles.css">', '<link rel="stylesheet" href="styles.css">\n  <link rel="stylesheet" href="dashboard.css">')
+          if 'catalog-universal.js' not in s:
+              s = s.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n  <script src="catalog-universal.js"></script>\n  <script src="dashboard.js"></script>')
+          s = s.replace('<span>Project Gutenberg</span>', '<span>Project Gutenberg · Google Books · Open Library</span>')
+          s = s.replace('Clásicos para descubrir y añadir a tu biblioteca.', 'Busca a la vez en varias bibliotecas y catálogos.')
+          s = s.replace('Libros gratuitos</h2>', 'Catálogo de libros</h2>')
+          s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título o autor en tres catálogos. Cada resultado indica si hay EPUB, vista previa o acceso sujeto a préstamo o compra.')
+          s = s.replace('Buscar título o autor…', 'Buscar en 3 catálogos: título o autor…')
+          s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'varias bibliotecas y encuentra tu próxima lectura.')
           p.write_text(s)
           PY
           grep -q 'dashboard.css' site/index.html
           grep -q 'dashboard.js' site/index.html
-          grep -q 'dash-aside' site/dashboard.js
-          grep -q '<svg' site/icon.svg
+          grep -q 'catalog-universal.js' site/index.html
+          grep -q 'Google Books' site/catalog-universal.js
+          grep -q 'Open Library' site/catalog-universal.js
+          grep -q "lextory-shell-v9" site/sw.js
           node --check site/app.js
+          node --check site/catalog-universal.js
           node --check site/dashboard.js
           node --check site/sw.js
       - name: Upload website
