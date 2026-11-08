@@ -315,7 +315,7 @@
     }
   }
 
-  function openLibraryDatabase() {
+  function openLocalBookDatabase() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('lector-biblioteca-v1', 1);
       request.onsuccess = () => resolve(request.result);
@@ -332,7 +332,7 @@
   }
 
   async function findStoredBook(title, fileName) {
-    const db = await openLibraryDatabase();
+    const db = await openLocalBookDatabase();
     try {
       const tx = db.transaction('books', 'readonly');
       const request = tx.objectStore('books').getAll();
