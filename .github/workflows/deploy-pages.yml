@@ -132,7 +132,7 @@ jobs:
           import_end = "\n  function destroyCurrentReader() {"
           if import_start not in app_js or import_end not in app_js:
               raise SystemExit("Could not locate native book import function")
-          if "window.LEXTORY_BOOKS.importFile" not in app_js:
+          if "window.LEXTORY_BOOKS.waitForDatabase" not in app_js:
               start = app_js.index(import_start)
               end = app_js.index(import_end, start)
               new_import = r"""  async function importBook(file, metadata = {}, options = {}) {
@@ -202,10 +202,31 @@ jobs:
               }
             }
           
+            async function waitForLibraryDatabase(timeoutMs = 20000) {
+              const started = Date.now();
+              while (!state.db) {
+                if (Date.now() - started >= timeoutMs) {
+                  throw new Error('La biblioteca local todavía no está lista. Recarga Lextory e inténtalo de nuevo.');
+                }
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
+              return state.db;
+            }
+
             window.LEXTORY_BOOKS = window.LEXTORY_BOOKS || {};
-            window.LEXTORY_BOOKS.importFile = (file, metadata = {}, options = {}) => importBook(file, metadata, options);
-            window.LEXTORY_BOOKS.getAll = () => getAllBooks();
-            window.LEXTORY_BOOKS.refresh = () => refreshLibrary();
+            window.LEXTORY_BOOKS.waitForDatabase = waitForLibraryDatabase;
+            window.LEXTORY_BOOKS.importFile = async (file, metadata = {}, options = {}) => {
+              await waitForLibraryDatabase();
+              return importBook(file, metadata, options);
+            };
+            window.LEXTORY_BOOKS.getAll = async () => {
+              await waitForLibraryDatabase();
+              return getAllBooks();
+            };
+            window.LEXTORY_BOOKS.refresh = async () => {
+              await waitForLibraryDatabase();
+              return refreshLibrary();
+            };
           """
               app_js = app_js[:start] + new_import + app_js[end:]
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
@@ -229,7 +250,7 @@ jobs:
           grep -q 'lector-vocabulary-updated-at' site/app.js
           grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
           grep -q 'window.LEXTORY_BOOKS.importFile' site/app.js
-          grep -q 'lextory-shell-v25' site/sw.js
+          grep -q 'lextory-shell-v26' site/sw.js
           grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi
