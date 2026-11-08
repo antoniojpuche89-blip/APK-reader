@@ -1,4 +1,4 @@
-name: Deploy Lextory beta 3 to GitHub Pages
+name: Deploy Lextory Beta 4 to GitHub Pages
 
 on:
   push:
@@ -30,15 +30,22 @@ jobs:
           cat lector-beta2.part* > lector-beta2.zip
           echo '8b1d06d9a45bd01439fc299e677951abbff30548913621902cdd1c791773e867  lector-beta2.zip' | sha256sum -c -
           unzip -tq lector-beta2.zip
-      - name: Prepare Lextory Beta 3
+      - name: Prepare Lextory Beta 4 visual interface
         run: |
           mkdir -p site
           unzip -q lector-beta2.zip -d site
           cp -a lextory-beta3-overlay/. site/
+          cat lextory-beta4-payload/overlay.part* | base64 -d | tar -xz -C site
           test -s site/index.html
+          test -s site/app.js
+          test -s site/styles.css
           test -s site/icon-192.png
           test -s site/icon.svg
-          grep -q 'Lextory' site/manifest.webmanifest
+          grep -q 'flashcard-game' site/index.html
+          grep -q 'extractEpubCover' site/app.js
+          grep -q 'featured-book-shelf' site/styles.css
+          node --check site/app.js
+          node --check site/sw.js
       - name: Upload website
         uses: actions/upload-pages-artifact@v3
         with:
