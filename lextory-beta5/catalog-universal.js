@@ -4,17 +4,14 @@
   const $ = id => document.getElementById(id);
   const GUTENDEX = 'https://gutendex.com/books/';
   const GOOGLE = 'https://www.googleapis.com/books/v1/volumes';
-  const OPEN_LIBRARY = 'https://openlibrary.org/search.json';
-  const CACHE_PREFIX = 'lextory-catalog-v2:';
+  const CACHE_PREFIX = 'lextory-catalog-v3:';
   const CACHE_TTL = 8 * 60 * 1000;
-  const SOURCE_NAMES = { gutenberg: 'Project Gutenberg', google: 'Google Books', openlibrary: 'Open Library' };
-  const OL_LANG = { en: 'eng', es: 'spa', fr: 'fre', de: 'ger', it: 'ita', pt: 'por' };
+  const SOURCE_NAMES = { gutenberg: 'Project Gutenberg', google: 'Google Books' };
   const LANG_NAMES = { en: 'Inglés', es: 'Español', fr: 'Francés', de: 'Alemán', it: 'Italiano', pt: 'Portugués' };
   let activeController = null;
   let searchTimer = null;
   let sequence = 0;
   let nextGutenbergUrl = null;
-  let lastOpenLibraryAt = 0;
   let activeQuery = '';
   let activeLanguage = 'en';
   let activeCacheKey = '';
@@ -80,13 +77,7 @@
     }
   }
 
-  async function fetchOpenLibrary(url, signal) {
-    const elapsed = Date.now() - lastOpenLibraryAt;
-    if (elapsed < 1050) await wait(1050 - elapsed, signal);
-    if (signal.aborted) throw abortError();
-    lastOpenLibraryAt = Date.now();
-    return fetchJson(url, signal, 8500);
-  }
+
 
   function secureUrl(value, hosts) {
     try {
@@ -126,11 +117,15 @@
     const info = item.volumeInfo || {};
     const access = item.accessInfo || {};
     const status = access.accessViewStatus || 'NONE';
+    const epubInfo = access.epub || {};
+    const publicDomain = access.publicDomain === true || status === 'FULL_PUBLIC_DOMAIN';
+    const epubDownloadUrl = secureUrl(epubInfo.downloadLink || '', ['books.google.com','googleusercontent.com']);
     let accessLabel = 'Ficha bibliográfica';
-    if (status === 'FULL_PUBLIC_DOMAIN') accessLabel = 'Texto completo de dominio público';
+    if (publicDomain && epubDownloadUrl) accessLabel = 'Dominio público · EPUB descargable';
+    else if (publicDomain) accessLabel = 'Texto completo de dominio público';
     else if (status === 'FULL_PURCHASED') accessLabel = 'Texto completo (compra o cuenta)';
     else if (status === 'SAMPLE' || access.viewability === 'PARTIAL') accessLabel = 'Vista previa disponible';
-    else if (access.epub && access.epub.isAvailable) accessLabel = 'EPUB indicado en Google Books';
+    else if (epubInfo.isAvailable) accessLabel = 'EPUB indicado en Google Books';
     const images = info.imageLinks || {};
     const cover = (images.extraLarge || images.large || images.medium || images.thumbnail || images.smallThumbnail || '').replace(/^http:/i, 'https:');
     const id = item.id || '';
@@ -146,33 +141,11 @@
       copyright: null,
       downloadCount: 0,
       publishedYear: info.publishedDate || '',
-      epub: !!(access.epub && access.epub.isAvailable),
+      epub: !!epubInfo.isAvailable,
+      epubDownloadUrl,
+      publicDomain,
       accessLabel,
       accessLevel: status,
-      sources: []
-    };
-  }
-
-  function normalizeOpenLibrary(doc) {
-    const key = String(doc.key || '');
-    const cover = doc.cover_i ? 'https://covers.openlibrary.org/b/id/' + encodeURIComponent(doc.cover_i) + '-M.jpg' : '';
-    const langs = Array.isArray(doc.language) ? doc.language.slice(0, 3).map(normalizeLanguage) : [];
-    let accessLabel = doc.has_fulltext ? 'Texto digital indicado (puede requerir préstamo)' : (doc.public_scan_b ? 'Escaneo público indicado' : 'Ficha bibliográfica');
-    return {
-      id: 'ol-' + key.replace(/[^a-zA-Z0-9]/g, ''),
-      sourceKey: 'openlibrary',
-      title: doc.title || 'Sin título',
-      authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 3) : [],
-      languages: langs,
-      formats: {},
-      coverUrl: cover,
-      sourceUrl: key.startsWith('/works/') ? 'https://openlibrary.org' + key : 'https://openlibrary.org/search?q=' + encodeURIComponent(doc.title || ''),
-      copyright: null,
-      downloadCount: 0,
-      publishedYear: doc.first_publish_year ? String(doc.first_publish_year) : '',
-      epub: false,
-      accessLabel,
-      hasFullText: !!doc.has_fulltext,
       sources: []
     };
   }
@@ -207,7 +180,7 @@
   }
 
   function openBookSource(url) {
-    const safe = secureUrl(url, ['gutenberg.org','google.com','openlibrary.org']);
+    const safe = secureUrl(url, ['gutenberg.org','google.com']);
     if (safe) window.open(safe, '_blank', 'noopener,noreferrer');
   }
 
@@ -216,7 +189,7 @@
     card.className = 'catalog-card';
     const cover = document.createElement('div');
     cover.className = 'catalog-cover cover-' + (Math.abs(String(book.id).split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % 6);
-    const imageUrl = secureUrl(book.coverUrl, ['gutenberg.org','books.google.com','googleusercontent.com','covers.openlibrary.org']);
+    const imageUrl = secureUrl(book.coverUrl, ['gutenberg.org','books.google.com','googleusercontent.com']);
     if (imageUrl) {
       cover.classList.add('has-image');
       const img = document.createElement('img');
@@ -249,9 +222,11 @@
     if (book.sourceKey === 'gutenberg' && book.epub) {
       button.textContent = 'Añadir EPUB al lector ↓';
       button.addEventListener('click', () => importGutenberg(book, button));
+    } else if (book.sourceKey === 'google' && book.publicDomain && book.epubDownloadUrl) {
+      button.textContent = 'Añadir EPUB al lector ↓';
+      button.addEventListener('click', () => importGoogle(book, button));
     } else {
-      button.textContent = book.sourceKey === 'google' && (book.accessLevel === 'SAMPLE' || book.accessLevel === 'FULL_PUBLIC_DOMAIN') ? 'Ver libro / vista previa ↗' :
-        (book.sourceKey === 'openlibrary' && book.hasFullText ? 'Comprobar lectura o préstamo ↗' : 'Ver ficha de la edición ↗');
+      button.textContent = book.sourceKey === 'google' && (book.accessLevel === 'SAMPLE' || book.accessLevel === 'FULL_PUBLIC_DOMAIN') ? 'Ver libro / vista previa ↗' : 'Ver ficha de la edición ↗';
       button.addEventListener('click', () => openBookSource(book.sourceUrl));
     }
     actions.appendChild(button);
@@ -297,10 +272,10 @@
   }
 
   function loadingState() {
-    $('catalog-results').innerHTML = '<div class="catalog-loading"><div class="spinner"></div><span>Buscando en varios catálogos…</span></div>';
+    $('catalog-results').innerHTML = '<div class="catalog-loading"><div class="spinner"></div><span>Buscando en dos catálogos…</span></div>';
     $('catalog-result-count').textContent = 'Buscando…';
     const sourceStatus = document.querySelector('.catalog-meta span:last-child');
-    if (sourceStatus) sourceStatus.textContent = 'Gutenberg · Google Books · Open Library';
+    if (sourceStatus) sourceStatus.textContent = 'Project Gutenberg · Google Books';
     $('catalog-more').classList.add('hidden');
   }
 
@@ -335,17 +310,10 @@
     tasks.push(fetchJson(GUTENDEX + '?' + gutParams.toString(), controller.signal, 8500)); names.push('Project Gutenberg');
 
     if (query) {
-      const googleParams = new URLSearchParams({ q: query, maxResults: '12', printType: 'books', projection: 'lite', orderBy: 'relevance' });
+      const googleParams = new URLSearchParams({ q: query, maxResults: '16', printType: 'books', projection: 'lite', orderBy: 'relevance', filter: 'free-ebooks', download: 'epub' });
       if (language) googleParams.set('langRestrict', language);
       tasks.push(fetchJson(GOOGLE + '?' + googleParams.toString(), controller.signal, 8500)); names.push('Google Books');
 
-      const olParams = new URLSearchParams({
-        q: query,
-        fields: 'key,title,author_name,first_publish_year,cover_i,language,has_fulltext,public_scan_b',
-        limit: '12'
-      });
-      if (OL_LANG[language]) olParams.set('language', OL_LANG[language]);
-      tasks.push(fetchOpenLibrary(OPEN_LIBRARY + '?' + olParams.toString(), controller.signal)); names.push('Open Library');
     }
 
     const settled = await Promise.allSettled(tasks);
@@ -360,10 +328,8 @@
         const raw = Array.isArray(data.results) ? data.results : [];
         groups.push(raw.map(normalizeGutenberg));
         gutNext = data.next || null;
-      } else if (names[index] === 'Google Books') {
-        groups.push((Array.isArray(data.items) ? data.items : []).map(normalizeGoogle));
       } else {
-        groups.push((Array.isArray(data.docs) ? data.docs : []).map(normalizeOpenLibrary));
+        groups.push((Array.isArray(data.items) ? data.items : []).map(normalizeGoogle));
       }
     });
     const books = mergeSources(groups);
@@ -454,6 +420,51 @@
     }
   }
 
+  async function importGoogle(book, button) {
+    if (button.disabled || !book.publicDomain || !book.epubDownloadUrl) return;
+    let fallback = null;
+    try { fallback = window.open('about:blank', '_blank'); } catch (_) {}
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Descargando EPUB…';
+    try {
+      const response = await fetch(book.epubDownloadUrl, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('Descarga no disponible');
+      const blob = await response.blob();
+      if (!blob.size || (blob.type || '').toLowerCase().includes('html')) throw new Error('Respuesta no válida');
+      const signature = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
+      if (signature[0] !== 0x50 || signature[1] !== 0x4b) throw new Error('Google no ha devuelto un EPUB directo');
+      if (fallback && !fallback.closed) fallback.close();
+      const safeTitle = (book.title || 'Libro').replace(/[\\/:*?"<>|]+/g, '-').trim();
+      const file = new File([blob], safeTitle + '.epub', { type: 'application/epub+zip', lastModified: Date.now() });
+      const input = $('file-input');
+      if (input && typeof DataTransfer !== 'undefined') {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        notify('Añadiendo «' + book.title + '» a tu biblioteca…');
+      } else {
+        const link = document.createElement('a');
+        const objectUrl = URL.createObjectURL(blob);
+        link.href = objectUrl;
+        link.download = safeTitle + '.epub';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+        notify('EPUB descargado. Impórtalo desde Mi biblioteca.');
+      }
+    } catch (_) {
+      if (fallback && !fallback.closed) fallback.location.replace(book.sourceUrl);
+      else openBookSource(book.sourceUrl);
+      notify('Google Books no ha permitido la descarga directa. Hemos abierto la ficha oficial.');
+    } finally {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
+
   function activateCatalog() {
     $('my-library-section').classList.add('hidden');
     $('catalog-section').classList.remove('hidden');
@@ -464,17 +475,17 @@
     $('flashcards-tab')?.classList.remove('active');
     document.querySelector('.welcome-card')?.classList.add('hidden');
     $('page-heading').textContent = 'Catálogo de libros';
-    $('page-subheading').textContent = 'Busca a la vez en varias bibliotecas y catálogos.';
+    $('page-subheading').textContent = 'Busca en Project Gutenberg y Google Books. Añade los EPUB disponibles directamente a tu biblioteca.';
     searchAll();
   }
 
   function bind() {
     const meta = document.querySelector('.catalog-meta span:last-child');
-    if (meta) meta.textContent = 'Project Gutenberg · Google Books · Open Library';
+    if (meta) meta.textContent = 'Project Gutenberg · Google Books';
     const intro = document.querySelector('.catalog-intro');
-    if (intro) intro.textContent = 'Busca por título o autor en tres catálogos. Lextory indica si hay EPUB descargable, vista previa o acceso sujeto a préstamo o compra.';
+    if (intro) intro.textContent = 'Busca por título o autor en dos catálogos. Añade directamente los EPUB que estén disponibles como descarga de dominio público.';
     const input = $('catalog-search');
-    if (input) input.placeholder = 'Buscar en 3 catálogos: título o autor…';
+    if (input) input.placeholder = 'Buscar en 2 catálogos: título o autor…';
 
     document.addEventListener('click', event => {
       const trigger = event.target.closest('#catalog-tab,#open-catalog-button,#featured-view-all,#home-catalog-button');
