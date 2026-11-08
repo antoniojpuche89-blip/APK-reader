@@ -206,7 +206,7 @@ jobs:
             window.LEXTORY_BOOKS.importFile = (file, metadata = {}, options = {}) => importBook(file, metadata, options);
             window.LEXTORY_BOOKS.getAll = () => getAllBooks();
             window.LEXTORY_BOOKS.refresh = () => refreshLibrary();
-"""
+          """
               app_js = app_js[:start] + new_import + app_js[end:]
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
           if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
