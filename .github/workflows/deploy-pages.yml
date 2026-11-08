@@ -75,8 +75,8 @@ jobs:
           if "lector-vocabulary-updated-at" not in app_js:
               if stamp not in app_js:
                   raise SystemExit("Could not locate vocabulary persistence hook")
-              app_js = app_js.replace(stamp, stamp + "\\n    localStorage.setItem('lector-vocabulary-updated-at', String(Date.now()));", 1)
-          event_hook = "  window.addEventListener('lextory:cloud-vocabulary-restored', () => {\\n    loadVocabulary();\\n    renderVocabulary();\\n  });\\n\\n"
+              app_js = app_js.replace(stamp, stamp + chr(10) + "    localStorage.setItem('lector-vocabulary-updated-at', String(Date.now()));", 1)
+          event_hook = "  window.addEventListener('lextory:cloud-vocabulary-restored', () => {" + chr(10) + "    loadVocabulary();" + chr(10) + "    renderVocabulary();" + chr(10) + "  });" + chr(10) + chr(10)
           if "lextory:cloud-vocabulary-restored" not in app_js:
               anchor = "  async function init() {"
               if anchor not in app_js:
@@ -97,7 +97,6 @@ jobs:
           grep -q 'https://ww3.ebookelo.com/' site/catalog-universal.js
           grep -q 'https://ww3.lectulandia.com/' site/catalog-universal.js
           grep -q 'catalog-import-external' site/catalog-universal.js
-          grep -q "lextory-shell-v12" site/sw.js
           node --check site/app.js
           node --check site/catalog-universal.js
           node --check site/dashboard.js

@@ -251,7 +251,7 @@
     ).join('|');
     return books + '::' + (localStorage.getItem(VOCAB_KEY) || '[]');
   }
-  function scheduleSync() {
+  function scheduleSync(force) {
     if (!session || !configured || syncing) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => {
@@ -261,7 +261,7 @@
         lastVocab = words;
       }
       const snapshot = localSnapshot();
-      if (snapshot !== lastSnapshot || Date.now() - lastSyncAt > 5 * 60 * 1000) syncNow(false);
+      if (force || snapshot !== lastSnapshot || Date.now() - lastSyncAt > 5 * 60 * 1000) syncNow(false);
     }, 1800);
   }
   async function submitAuth(event) {
@@ -322,9 +322,9 @@
       if (event.target.closest('#account-button')) openModal();
     }, true);
     const list = $('book-list'), progress = $('progress-fill'), vocab = $('vocabulary-list');
-    if (list) new MutationObserver(scheduleSync).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
-    if (progress) new MutationObserver(scheduleSync).observe(progress, { attributes: true, attributeFilter: ['style'] });
-    if (vocab) new MutationObserver(scheduleSync).observe(vocab, { childList: true, subtree: true, characterData: true });
+    if (list) new MutationObserver(() => scheduleSync(true)).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    if (progress) new MutationObserver(() => scheduleSync(true)).observe(progress, { attributes: true, attributeFilter: ['style'] });
+    if (vocab) new MutationObserver(() => scheduleSync(true)).observe(vocab, { childList: true, subtree: true, characterData: true });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSync(); });
     setInterval(scheduleSync, 25000);
     if (!configured) {
