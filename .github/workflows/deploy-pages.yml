@@ -1,4 +1,4 @@
-name: Deploy Lextory Beta 5.4 with external download links
+name: Deploy Lextory Beta 5.5 Gutenberg and external import links
 
 on:
   push:
@@ -52,24 +52,24 @@ jobs:
               s = s.replace('<link rel="stylesheet" href="styles.css">', '<link rel="stylesheet" href="styles.css">\n  <link rel="stylesheet" href="dashboard.css">')
           if 'catalog-universal.js' not in s:
               s = s.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n  <script src="catalog-universal.js"></script>\n  <script src="dashboard.js"></script>')
-          s = s.replace('<span>Project Gutenberg</span>', '<span>Project Gutenberg · Google Books</span>')
-          s = s.replace('Clásicos para descubrir y añadir a tu biblioteca.', 'Busca en Project Gutenberg y Google Books.')
+          s = s.replace('<span>Project Gutenberg · Google Books</span>', '<span>Project Gutenberg</span>')
+          s = s.replace('<span>Project Gutenberg</span>', '<span>Project Gutenberg</span>')
+          s = s.replace('Clásicos para descubrir y añadir a tu biblioteca.', 'Busca en Project Gutenberg.')
           s = s.replace('Libros gratuitos</h2>', 'Catálogo de libros</h2>')
-          s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título o autor en dos catálogos. Añade directamente los EPUB que estén disponibles como descarga de dominio público.')
-          s = s.replace('Buscar título o autor…', 'Buscar en 2 catálogos: título o autor…')
-          s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'Project Gutenberg y Google Books, y encuentra tu próxima lectura.')
+          s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título o autor en Project Gutenberg. Añade los EPUB disponibles directamente a tu biblioteca o utiliza los enlaces externos para importar archivos.')
+          s = s.replace('Buscar título o autor…', 'Buscar en Project Gutenberg: título o autor…')
+          s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'Project Gutenberg y encuentra tu próxima lectura.')
           p.write_text(s)
           PY
           grep -q 'dashboard.css' site/index.html
           grep -q 'dashboard.js' site/index.html
           grep -q 'catalog-universal.js' site/index.html
-          grep -q 'Google Books' site/catalog-universal.js
-          if grep -qi 'openlibrary\|open library' site/catalog-universal.js; then echo 'Open Library still present'; exit 1; fi
-          grep -q 'importGoogle' site/catalog-universal.js
+          grep -q 'Project Gutenberg' site/catalog-universal.js
+          if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi
           grep -q 'https://ww3.ebookelo.com/' site/catalog-universal.js
           grep -q 'https://ww3.lectulandia.com/' site/catalog-universal.js
           grep -q 'catalog-import-external' site/catalog-universal.js
-          grep -q "lextory-shell-v11" site/sw.js
+          grep -q "lextory-shell-v12" site/sw.js
           node --check site/app.js
           node --check site/catalog-universal.js
           node --check site/dashboard.js
