@@ -63,7 +63,9 @@ jobs:
           s = s.replace('<span>Project Gutenberg</span>', '<span>Project Gutenberg</span>')
           s = s.replace('Clásicos para descubrir y añadir a tu biblioteca.', 'Busca en Project Gutenberg.')
           s = s.replace('Libros gratuitos</h2>', 'Catálogo de libros</h2>')
-          s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título o autor en Project Gutenberg. Añade los EPUB disponibles directamente a tu biblioteca o utiliza los enlaces externos para importar archivos.')
+          s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título, autor o categoría en Project Gutenberg. Descarga los EPUB compatibles directamente en Mi Biblioteca.')
+          s = s.replace('Libros gratuitos</h2>', 'Explorar libros</h2>')
+          s = s.replace('si el navegador bloquea la importación automática, se abre la descarga para que puedas importarla manualmente.', 'los EPUB compatibles se guardan directamente en Mi Biblioteca.')
           s = s.replace('Buscar título o autor…', 'Buscar en Project Gutenberg: título o autor…')
           s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'Project Gutenberg y encuentra tu próxima lectura.')
           extras = '''\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud-sync.js"></script>\n  <script src="premium-ui.js"></script>\n  <script src="reader-enhancements.js"></script>'''
@@ -126,6 +128,93 @@ jobs:
               if anchor not in app_js:
                   raise SystemExit("Could not locate current-page text API hook")
               app_js = app_js.replace(anchor, page_api + anchor, 1)
+          import_start = "  async function importBook(file, metadata = {}) {"
+          import_end = "\n  function destroyCurrentReader() {"
+          if import_start not in app_js or import_end not in app_js:
+              raise SystemExit("Could not locate native book import function")
+          if "window.LEXTORY_BOOKS.importFile" not in app_js:
+              start = app_js.index(import_start)
+              end = app_js.index(import_end, start)
+              new_import = r"""  async function importBook(file, metadata = {}, options = {}) {
+    if (!file) return null;
+    const ext = String(file.name || '').split('.').pop().toLowerCase();
+    if (!['epub', 'pdf'].includes(ext)) { showToast('Elige un archivo EPUB o PDF.'); return null; }
+    if (file.size > 180 * 1024 * 1024) { showToast('El archivo supera el límite recomendado de 180 MB.'); return null; }
+
+    try {
+      const normalise = value => String(value || '')
+        .replace(/\.(epub|pdf)$/i, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const existingBooks = await getAllBooks();
+      const duplicate = existingBooks.find(book => {
+        if (!book.blob || !Number(book.blob.size || 0)) return false;
+        if (metadata.sourceKey && metadata.sourceId != null &&
+            book.sourceKey === metadata.sourceKey &&
+            String(book.sourceId || '') === String(metadata.sourceId)) return true;
+        return metadata.allowTitleMatch !== false &&
+          normalise(book.title || book.fileName) === normalise(metadata.title || safeBookTitle(file.name));
+      });
+      if (duplicate) {
+        await refreshLibrary();
+        if (options.openReader === true) openBook(duplicate.id);
+        return duplicate;
+      }
+
+      const id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(16).slice(2));
+      showToast('Guardando libro en tu biblioteca…');
+      let coverDataUrl = metadata.coverDataUrl || null;
+      if (!coverDataUrl) {
+        try { coverDataUrl = await extractBookCover(file, ext); }
+        catch (coverError) { console.info('El libro se guardará sin portada:', coverError); }
+      }
+
+      const book = {
+        id: id,
+        title: metadata.title || safeBookTitle(file.name),
+        fileName: file.name,
+        format: ext,
+        blob: file,
+        coverDataUrl: coverDataUrl || null,
+        addedAt: Date.now(),
+        updatedAt: Date.now(),
+        progress: 0,
+        lastPage: 1,
+        lastCfi: null,
+        totalPages: null,
+        sourceKey: metadata.sourceKey || null,
+        sourceId: metadata.sourceId == null ? null : String(metadata.sourceId)
+      };
+
+      await putBook(book);
+      await refreshLibrary();
+      if ($('file-input')) $('file-input').value = '';
+      showToast('Libro añadido a tu biblioteca.');
+      window.dispatchEvent(new CustomEvent('lextory:library-updated', {
+        detail: { bookId: id, title: book.title }
+      }));
+      if (options.openReader !== false) openBook(id);
+      return book;
+    } catch (error) {
+      console.error('No se pudo guardar el libro:', error);
+      showToast('No se pudo guardar el libro. Comprueba el espacio disponible.');
+      return null;
+    }
+  }
+
+  window.LEXTORY_BOOKS = window.LEXTORY_BOOKS || {};
+  window.LEXTORY_BOOKS.importFile = (file, metadata = {}, options = {}) => importBook(file, metadata, options);
+  window.LEXTORY_BOOKS.getAll = () => getAllBooks();
+  window.LEXTORY_BOOKS.refresh = () => refreshLibrary();
+"""
+              app_js = app_js[:start] + new_import + app_js[end:]
+          delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
+          if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
+              app_js = app_js.replace(
+                  delete_anchor,
+                  "        await deleteBookRecord(book.id); await refreshLibrary(); window.dispatchEvent(new CustomEvent('lextory:library-updated', { detail: { deletedBookId: book.id } })); showToast('Libro eliminado de tu biblioteca.');",
+                  1
+              )
           app.write_text(app_js)
           PY
           test -s site/bobby-reading.webp
@@ -139,7 +228,8 @@ jobs:
           grep -q 'delete-account.html' site/cloud-sync.js
           grep -q 'lector-vocabulary-updated-at' site/app.js
           grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
-          grep -q 'lextory-shell-v23' site/sw.js
+          grep -q 'window.LEXTORY_BOOKS.importFile' site/app.js
+          grep -q 'lextory-shell-v24' site/sw.js
           grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi

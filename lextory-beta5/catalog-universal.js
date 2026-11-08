@@ -14,6 +14,8 @@
   let activeQuery = '';
   let activeLanguage = 'en';
   let activeCacheKey = '';
+  let activeTopic = '';
+  let renderSequence = 0;
 
   function notify(message) {
     const toast = $('toast');
@@ -134,6 +136,18 @@
     return Array.from(merged.values());
   }
 
+  const CATEGORY_MARKUP = "<details class=\"catalog-category-group\" open><summary>Literatura</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Adventure\" aria-pressed=\"false\">Aventuras</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"American Literature\" aria-pressed=\"false\">Literatura estadounidense</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"British Literature\" aria-pressed=\"false\">Literatura británica</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"French Literature\" aria-pressed=\"false\">Literatura francesa</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"German Literature\" aria-pressed=\"false\">Literatura alemana</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Russian Literature\" aria-pressed=\"false\">Literatura rusa</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Classics of Literature\" aria-pressed=\"false\">Clásicos de la literatura</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Biographies\" aria-pressed=\"false\">Biografías</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Novels\" aria-pressed=\"false\">Novelas</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Short Stories\" aria-pressed=\"false\">Relatos cortos</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Poetry\" aria-pressed=\"false\">Poesía</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Plays/Films/Dramas\" aria-pressed=\"false\">Teatro y dramas</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Romance\" aria-pressed=\"false\">Romance</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Science-Fiction &amp; Fantasy\" aria-pressed=\"false\">Ciencia ficción y fantasía</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Crime, Thrillers &amp; Mystery\" aria-pressed=\"false\">Misterio y suspense</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Mythology, Legends &amp; Folklore\" aria-pressed=\"false\">Mitología y folclore</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Humour\" aria-pressed=\"false\">Humor</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Children &amp; Young Adult Reading\" aria-pressed=\"false\">Infantil y juvenil</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Literature - Other\" aria-pressed=\"false\">Otros de literatura</button></div></details><details class=\"catalog-category-group\"><summary>Ciencia y tecnología</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Engineering &amp; Technology\" aria-pressed=\"false\">Ingeniería y tecnología</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Mathematics\" aria-pressed=\"false\">Matemáticas</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Science - Physics\" aria-pressed=\"false\">Física</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Science - Chemistry/Biochemistry\" aria-pressed=\"false\">Química y bioquímica</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Science - Biology\" aria-pressed=\"false\">Biología</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Science - Earth/Agricultural/Farming\" aria-pressed=\"false\">Tierra y agricultura</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Research Methods/Statistics/Information Sys\" aria-pressed=\"false\">Investigación, estadística e informática</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Environmental Issues\" aria-pressed=\"false\">Medio ambiente</button></div></details><details class=\"catalog-category-group\"><summary>Historia y arqueología</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - American\" aria-pressed=\"false\">Historia de América</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - British\" aria-pressed=\"false\">Historia británica</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - European\" aria-pressed=\"false\">Historia europea</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Ancient\" aria-pressed=\"false\">Historia antigua</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Medieval/Middle Ages\" aria-pressed=\"false\">Edad Media</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Early Modern (c. 1450-1750)\" aria-pressed=\"false\">Edad moderna temprana</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Modern (1750+)\" aria-pressed=\"false\">Historia moderna</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Religious\" aria-pressed=\"false\">Historia religiosa</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Royalty\" aria-pressed=\"false\">Monarquías</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Warfare\" aria-pressed=\"false\">Historia militar</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Schools &amp; Universities\" aria-pressed=\"false\">Escuelas y universidades</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"History - Other\" aria-pressed=\"false\">Otros de historia</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Archaeology &amp; Anthropology\" aria-pressed=\"false\">Arqueología y antropología</button></div></details><details class=\"catalog-category-group\"><summary>Sociedad y ciencias sociales</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Business/Management\" aria-pressed=\"false\">Empresa y gestión</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Economics\" aria-pressed=\"false\">Economía</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Law &amp; Criminology\" aria-pressed=\"false\">Derecho y criminología</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Gender &amp; Sexuality Studies\" aria-pressed=\"false\">Género y sexualidad</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Psychiatry/Psychology\" aria-pressed=\"false\">Psicología y psiquiatría</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Sociology\" aria-pressed=\"false\">Sociología</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Politics\" aria-pressed=\"false\">Política</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Parenthood &amp; Family Relations\" aria-pressed=\"false\">Familia y crianza</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Old Age &amp; the Elderly\" aria-pressed=\"false\">Vejez</button></div></details><details class=\"catalog-category-group\"><summary>Arte y cultura</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Art\" aria-pressed=\"false\">Arte</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Architecture\" aria-pressed=\"false\">Arquitectura</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Music\" aria-pressed=\"false\">Música</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Fashion\" aria-pressed=\"false\">Moda</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Journalism/Media/Writing\" aria-pressed=\"false\">Periodismo y escritura</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Language &amp; Communication\" aria-pressed=\"false\">Lenguaje y comunicación</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Essays, Letters &amp; Speeches\" aria-pressed=\"false\">Ensayos, cartas y discursos</button></div></details><details class=\"catalog-category-group\"><summary>Religión y filosofía</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Religion/Spirituality\" aria-pressed=\"false\">Religión y espiritualidad</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Philosophy &amp; Ethics\" aria-pressed=\"false\">Filosofía y ética</button></div></details><details class=\"catalog-category-group\"><summary>Estilo de vida y aficiones</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Cooking &amp; Drinking\" aria-pressed=\"false\">Cocina</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Sports/Hobbies\" aria-pressed=\"false\">Deportes y aficiones</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"How To ...\" aria-pressed=\"false\">Guías prácticas</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Travel Writing\" aria-pressed=\"false\">Literatura de viajes</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Nature/Gardening/Animals\" aria-pressed=\"false\">Naturaleza, jardinería y animales</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Sexuality &amp; Erotica\" aria-pressed=\"false\">Sexualidad y erotismo</button></div></details><details class=\"catalog-category-group\"><summary>Salud y medicina</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Health &amp; Medicine\" aria-pressed=\"false\">Salud y medicina</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Drugs/Alcohol/Pharmacology\" aria-pressed=\"false\">Farmacología</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Nutrition\" aria-pressed=\"false\">Nutrición</button></div></details><details class=\"catalog-category-group\"><summary>Educación y consulta</summary><div class=\"catalog-category-chips\"><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Encyclopedias/Dictionaries/Reference\" aria-pressed=\"false\">Enciclopedias y diccionarios</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Teaching &amp; Education\" aria-pressed=\"false\">Enseñanza y educación</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Reports &amp; Conference Proceedings\" aria-pressed=\"false\">Informes y congresos</button><button type=\"button\" class=\"catalog-category-chip\" data-topic=\"Journals\" aria-pressed=\"false\">Revistas académicas</button></div></details>";
+  function renderCategoryPanel() {
+    if (document.getElementById('catalog-category-panel')) return;
+    const row = document.querySelector('.catalog-search-row');
+    if (!row) return;
+    const panel = document.createElement('section');
+    panel.id = 'catalog-category-panel';
+    panel.className = 'catalog-category-panel';
+    panel.innerHTML = '<div class="catalog-category-heading"><div><strong>Explorar por categorías</strong><small>Las mismas categorías de Project Gutenberg</small></div><a href="https://www.gutenberg.org/ebooks/categories" target="_blank" rel="noopener noreferrer">Ver en Gutenberg ↗</a></div><div class="catalog-category-groups">' + CATEGORY_MARKUP + '</div>';
+    row.insertAdjacentElement('afterend', panel);
+  }
+
   function makeFallback(cover, title, author) {
     cover.innerHTML = '';
     cover.classList.remove('has-image');
@@ -184,7 +198,7 @@
     const actions = document.createElement('div'); actions.className = 'catalog-card-actions';
     const button = document.createElement('button'); button.type = 'button'; button.className = 'catalog-open-button';
     if (book.sourceKey === 'gutenberg' && book.epub) {
-      button.textContent = 'Añadir EPUB al lector ↓';
+      button.textContent = 'Descargar en Mi Biblioteca ↓';
       button.addEventListener('click', () => importGutenberg(book, button));
     } else {
       button.textContent = 'Ver ficha en Project Gutenberg ↗';
@@ -204,16 +218,78 @@
     return card;
   }
 
-  function renderBooks(books, append) {
+  function normaliseBookKey(value) {
+    return String(value || '')
+      .replace(/\.(epub|pdf)$/i, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  async function getLocalBookRows() {
+    try {
+      if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.getAll === 'function') {
+        return await window.LEXTORY_BOOKS.getAll();
+      }
+      const db = await openLocalBookDatabase();
+      try {
+        if (!db.objectStoreNames.contains('books')) return [];
+        const tx = db.transaction('books', 'readonly');
+        const request = tx.objectStore('books').getAll();
+        return await new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error || new Error('No se pudo consultar la biblioteca.'));
+        });
+      } finally { db.close(); }
+    } catch (error) {
+      console.warn('No se pudo consultar la biblioteca local:', error);
+      return [];
+    }
+  }
+
+  function isBookStored(book, rows) {
+    const id = String(book.id || '').replace(/^gut-/, '');
+    const title = normaliseBookKey(book.title);
+    return rows.some(row => {
+      if (!row.blob || !Number(row.blob.size || 0)) return false;
+      if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
+      return normaliseBookKey(row.title || row.fileName) === title;
+    });
+  }
+
+  async function findStoredBook(book) {
+    const rows = await getLocalBookRows();
+    const id = String(book.id || '').replace(/^gut-/, '');
+    return rows.find(row => {
+      if (!row.blob || !Number(row.blob.size || 0)) return false;
+      if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
+      return normaliseBookKey(row.title || row.fileName) === normaliseBookKey(book.title);
+    }) || null;
+  }
+
+  async function renderBooks(books, append) {
+    const token = ++renderSequence;
+    const rows = await getLocalBookRows();
+    if (token !== renderSequence) return 0;
+    const visible = books.filter(book => !isBookStored(book, rows));
     const results = $('catalog-results');
     if (!append) results.innerHTML = '';
-    if (!books.length && !append) {
-      const empty = document.createElement('div'); empty.className = 'catalog-empty';
-      empty.innerHTML = '<strong>No encontramos libros</strong><span>Prueba con otro título o autor, o cambia el idioma.</span>';
+
+    visible.forEach(book => {
+      const id = String(book.id || '');
+      if (results.querySelector('.catalog-card[data-source-id="' + CSS.escape(id.replace(/^gut-/, '')) + '"]')) return;
+      const card = catalogCard(book);
+      card.dataset.sourceId = id.replace(/^gut-/, '');
+      card.dataset.bookId = id;
+      results.appendChild(card);
+    });
+
+    if (!append && !results.querySelector('.catalog-card')) {
+      const empty = document.createElement('div');
+      empty.className = 'catalog-empty';
+      empty.innerHTML = '<strong>Estos libros ya están en tu biblioteca</strong><span>En Explorar solo mostramos libros que todavía no has añadido. Busca otra categoría o título.</span>';
       results.appendChild(empty);
-      return;
     }
-    books.forEach(book => results.appendChild(catalogCard(book)));
+    return results.querySelectorAll('.catalog-card').length;
   }
 
   function getCache(key) {
@@ -243,7 +319,7 @@
   async function searchAll() {
     const query = $('catalog-search').value.trim();
     const language = $('catalog-language').value;
-    const cacheKey = query.toLowerCase() + '|' + language;
+    const cacheKey = query.toLowerCase() + '|' + language + '|' + activeTopic;
     activeQuery = query; activeLanguage = language; activeCacheKey = cacheKey;
     if (activeController) activeController.abort();
     const controller = new AbortController();
@@ -252,9 +328,9 @@
     const current = () => requestId === sequence && !controller.signal.aborted;
     const cache = getCache(cacheKey);
     if (cache) {
-      renderBooks(cache.books, false);
+      const visibleCount = await renderBooks(cache.books, false);
       nextGutenbergUrl = cache.next;
-      $('catalog-result-count').textContent = cache.books.length + ' resultados guardados para «' + (query || 'libros populares') + '»';
+      $('catalog-result-count').textContent = visibleCount + (activeTopic ? ' libros de ' + activeTopic : query ? ' resultados para «' + query + '»' : ' libros populares');
       $('catalog-more').classList.toggle('hidden', !nextGutenbergUrl);
       const sourceStatus = document.querySelector('.catalog-meta span:last-child');
       if (sourceStatus) sourceStatus.textContent = 'Project Gutenberg · resultados recientes';
@@ -266,18 +342,20 @@
     if (query) gutParams.set('search', query);
     else gutParams.set('copyright', 'false');
     if (language) gutParams.set('languages', language);
+    if (activeTopic) gutParams.set('topic', activeTopic);
+    gutParams.set('mime_type', 'application/epub+zip');
 
     try {
       const data = await fetchJson(GUTENDEX + '?' + gutParams.toString(), controller.signal, 8500);
       if (!current()) return;
       const raw = Array.isArray(data.results) ? data.results : [];
       const books = mergeSources([raw.map(normalizeGutenberg)]);
-      renderBooks(books, false);
+      const visibleCount = await renderBooks(books, false);
       nextGutenbergUrl = data.next || null;
       $('catalog-more').classList.toggle('hidden', !nextGutenbergUrl);
       $('catalog-more').disabled = false;
       $('catalog-more').textContent = 'Más resultados de Gutenberg';
-      $('catalog-result-count').textContent = books.length + (query ? ' resultados para «' + query + '»' : ' libros gratuitos populares');
+      $('catalog-result-count').textContent = visibleCount + (activeTopic ? ' libros en ' + activeTopic : query ? ' resultados para «' + query + '»' : ' libros populares');
       const sourceStatus = document.querySelector('.catalog-meta span:last-child');
       if (sourceStatus) sourceStatus.textContent = 'Project Gutenberg · conexión correcta';
       setCache(cacheKey, books, nextGutenbergUrl);
@@ -304,7 +382,8 @@
       const data = await fetchJson(nextGutenbergUrl, controller.signal, 8500);
       if (requestId !== sequence || controller.signal.aborted) return;
       const books = (Array.isArray(data.results) ? data.results : []).map(normalizeGutenberg);
-      renderBooks(mergeSources([books]), true);
+      const visibleCount = await renderBooks(mergeSources([books]), true);
+      $('catalog-result-count').textContent = visibleCount + ' libros disponibles para explorar';
       nextGutenbergUrl = data.next || null;
       button.classList.toggle('hidden', !nextGutenbergUrl);
       button.textContent = 'Más resultados de Gutenberg';
@@ -370,79 +449,106 @@
       notify('No se ha podido identificar el EPUB de Project Gutenberg.');
       return;
     }
-
-    const input = $('file-input');
-    if (!input || typeof DataTransfer === 'undefined') {
-      notify('Este navegador no permite enviar el EPUB directamente a la biblioteca. Prueba con Chrome o Edge actualizado.');
+    const importFile = window.LEXTORY_BOOKS && window.LEXTORY_BOOKS.importFile;
+    if (typeof importFile !== 'function') {
+      notify('La biblioteca todavía se está iniciando. Espera un momento y vuelve a intentarlo.');
       return;
     }
 
-    const safeTitle = (book.title || 'Libro ' + id)
-      .replace(/[\\/:*?"<>|]+/g, '-').trim();
-    const fileName = safeTitle + '.epub';
     const original = button.textContent;
-    let imported = false;
     button.disabled = true;
     button.textContent = 'Comprobando biblioteca…';
-
     try {
-      const existing = await findStoredBook(book.title, fileName);
+      const existing = await findStoredBook(book);
       if (existing) {
-        imported = true;
         button.textContent = '✓ Descargado';
         button.classList.add('is-downloaded');
-        notify('«' + book.title + '» ya está guardado en Lextory.');
+        button.closest('.catalog-card')?.remove();
+        notify('«' + book.title + '» ya está guardado en Mi Biblioteca.');
         return;
       }
 
+      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\/:*?"<>|]+/g, '-').trim();
+      const fileName = safeTitle + '.epub';
+      const urls = [];
+      const official = book.formats && book.formats['application/epub+zip'];
+      if (official) urls.push(official);
+      const mirror = 'https://gutenberg.pglaf.org/cache/epub/' + id + '/';
+      urls.push(mirror + 'pg' + id + '.epub', mirror + 'pg' + id + '-images.epub');
+
       button.textContent = 'Descargando EPUB…';
-      const base = 'https://gutenberg.pglaf.org/cache/epub/' + id + '/';
-      const names = ['pg' + id + '.epub', 'pg' + id + '-images.epub'];
-      let blob = null;
-      for (const name of names) {
+      let blob = null, lastError = null;
+      for (const url of [...new Set(urls)]) {
         try {
-          const response = await fetch(base + name, {
-            mode: 'cors', credentials: 'omit', cache: 'no-store'
-          });
-          if (!response.ok) continue;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 35000);
+          let response;
+          try {
+            response = await fetch(url, {
+              method: 'GET',
+              mode: 'cors',
+              credentials: 'omit',
+              cache: 'no-store',
+              signal: controller.signal,
+              headers: { Accept: 'application/epub+zip,application/octet-stream;q=0.9,*/*;q=0.8' }
+            });
+          } finally { clearTimeout(timeout); }
+
+          if (!response.ok) throw new Error('Respuesta HTTP ' + response.status);
           const candidate = await response.blob();
-          if (candidate.size && !(candidate.type || '').includes('text/html')) {
-            blob = candidate;
-            break;
+          if (!candidate.size || (candidate.type || '').toLowerCase().includes('text/html')) {
+            throw new Error('El servidor devolvió una página web, no un EPUB.');
           }
-        } catch (_) {}
+          const signature = new Uint8Array(await candidate.slice(0, 4).arrayBuffer());
+          if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+            throw new Error('El archivo recibido no tiene formato EPUB/ZIP.');
+          }
+          blob = candidate;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.warn('No se pudo descargar desde una fuente EPUB:', url, error);
+        }
       }
-      if (!blob) throw new Error('Project Gutenberg no ha permitido obtener el EPUB automáticamente.');
+
+      if (!blob) {
+        const detail = lastError && lastError.message ? ' (' + lastError.message + ')' : '';
+        throw new Error('No se pudo descargar este EPUB directamente de Project Gutenberg' + detail + '.');
+      }
 
       const file = new File([blob], fileName, {
         type: 'application/epub+zip',
         lastModified: Date.now()
       });
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      input.files = transfer.files;
-      button.textContent = 'Guardando en Lextory…';
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+      button.textContent = 'Guardando en Mi Biblioteca…';
+      const saved = await importFile(file, {
+        title: book.title,
+        sourceKey: 'gutenberg',
+        sourceId: String(id)
+      }, { openReader: false });
 
-      const saved = await waitForStoredBook(book.title, fileName, 25000);
-      if (!saved) {
-        throw new Error('El EPUB se ha enviado al lector, pero no se ha podido confirmar su guardado. Revisa Mi biblioteca antes de volver a descargarlo.');
+      if (!saved || !saved.blob || !Number(saved.blob.size || 0)) {
+        throw new Error('Lextory no confirmó el guardado del archivo. Comprueba el espacio disponible e inténtalo de nuevo.');
       }
 
-      imported = true;
       button.textContent = '✓ Descargado';
       button.classList.add('is-downloaded');
-      window.dispatchEvent(new CustomEvent('lextory:library-updated', {
-        detail: { bookId: saved.id, title: saved.title || book.title }
-      }));
-      notify('«' + book.title + '» descargado y guardado en tu biblioteca.');
-    } catch (error) {
-      notify(error && error.message ? error.message : 'No se pudo guardar el EPUB en Lextory.');
-    } finally {
-      if (!imported) {
-        button.disabled = false;
-        button.textContent = original;
+      button.closest('.catalog-card')?.remove();
+      const count = $('catalog-result-count');
+      const remaining = $('catalog-results')?.querySelectorAll('.catalog-card').length || 0;
+      if (count) count.textContent = remaining + (remaining === 1 ? ' libro disponible para explorar' : ' libros disponibles para explorar');
+      if (!remaining) {
+        const empty = document.createElement('div');
+        empty.className = 'catalog-empty';
+        empty.innerHTML = '<strong>¡Todo añadido!</strong><span>Los libros descargados están en Mi Biblioteca. Elige otra categoría para seguir explorando.</span>';
+        $('catalog-results')?.appendChild(empty);
       }
+      notify('«' + book.title + '» descargado y guardado en Mi Biblioteca.');
+    } catch (error) {
+      console.error('Error al incorporar un libro de Gutenberg:', error);
+      button.disabled = false;
+      button.textContent = original;
+      notify(error && error.message ? error.message : 'No se pudo guardar el EPUB en Lextory.');
     }
   }
 
@@ -465,7 +571,8 @@
     const meta = document.querySelector('.catalog-meta span:last-child');
     if (meta) meta.textContent = 'Project Gutenberg';
     const intro = document.querySelector('.catalog-intro');
-    if (intro) intro.textContent = 'Busca por título o autor en Project Gutenberg. Añade los EPUB disponibles directamente a tu biblioteca o utiliza los enlaces externos para importar archivos.';
+    if (intro) intro.textContent = 'Busca libros por título, autor o categoría. Descarga los EPUB directamente en tu biblioteca personal.';
+    renderCategoryPanel();
 
     const externalSources = document.createElement('section');
     externalSources.className = 'catalog-external-sources';
@@ -506,6 +613,19 @@
     if (input) input.placeholder = 'Buscar en Project Gutenberg: título o autor…';
 
     document.addEventListener('click', event => {
+      const category = event.target.closest('.catalog-category-chip');
+      if (category) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        const topic = category.dataset.topic || '';
+        activeTopic = activeTopic === topic ? '' : topic;
+        document.querySelectorAll('.catalog-category-chip').forEach(chip => {
+          const selected = chip.dataset.topic === activeTopic;
+          chip.classList.toggle('active', selected);
+          chip.setAttribute('aria-pressed', String(selected));
+        });
+        searchAll();
+        return;
+      }
       const trigger = event.target.closest('#catalog-tab,#open-catalog-button,#featured-view-all,#home-catalog-button');
       if (trigger) {
         event.preventDefault(); event.stopImmediatePropagation(); activateCatalog(); return;
@@ -526,6 +646,10 @@
       }
     }, true);
 
+    window.addEventListener('lextory:library-updated', () => {
+      if (!$('catalog-section')?.classList.contains('hidden')) searchAll();
+    });
+
     document.addEventListener('input', event => {
       if (!event.target || event.target.id !== 'catalog-search') return;
       event.stopImmediatePropagation();
@@ -539,7 +663,7 @@
     }, true);
 
     const style = document.createElement('style');
-    style.textContent = '.catalog-source-pill{background:rgba(131,92,214,.19);border-color:rgba(168,129,255,.38);color:#d8c3ff}.catalog-meta span:last-child{max-width:58%;text-align:right;line-height:1.4}.catalog-card-actions{flex-wrap:wrap}.catalog-card-actions .catalog-source-link{font-size:10px}.catalog-open-button:disabled{opacity:.55;cursor:wait}.catalog-external-sources{margin:14px 0 18px;padding:16px;border:1px solid rgba(163,132,255,.3);border-radius:16px;background:linear-gradient(145deg,rgba(44,38,91,.88),rgba(20,29,59,.94));box-shadow:0 8px 24px rgba(0,0,0,.13)}.catalog-external-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.catalog-external-eyebrow{font-size:9px;font-weight:850;letter-spacing:1.4px;color:#b89aff}.catalog-external-top h3{margin:4px 0;font-size:17px;color:#fff}.catalog-external-top p{margin:0;color:#bfc5dd;font-size:11px;line-height:1.5}.catalog-external-format{flex:none;padding:6px 9px;border-radius:999px;border:1px solid rgba(180,153,255,.3);background:rgba(131,92,214,.16);color:#d8c8ff;font-size:9px;font-weight:800}.catalog-external-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.catalog-external-link{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border:1px solid rgba(166,146,255,.25);border-radius:12px;background:rgba(14,22,48,.54);text-decoration:none;color:#fff;transition:border-color .18s,transform .18s}.catalog-external-link:hover{border-color:#a98bff;transform:translateY(-1px)}.catalog-external-icon{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#8b45e9,#4d64d8);color:#fff;font-weight:900}.catalog-external-link strong,.catalog-external-link small{display:block}.catalog-external-link strong{font-size:12px}.catalog-external-link small{margin-top:3px;color:#aeb8d2;font-size:9px}.catalog-external-arrow{margin-left:auto;color:#cbb6ff;font-size:18px}.catalog-external-import{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(170,155,220,.16);color:#dbe0f4;font-size:11px}.catalog-external-import .catalog-open-button{padding:9px 13px;border:0;border-radius:999px;background:linear-gradient(110deg,#923ff0,#5930cf);color:#fff;font-size:10px;font-weight:850;cursor:pointer}.catalog-external-note{margin:10px 0 0;color:#929ebb;font-size:9px;line-height:1.5}@media(max-width:640px){.catalog-meta span:last-child{max-width:62%;font-size:9px}.catalog-external-links{grid-template-columns:1fr}.catalog-external-sources{padding:13px}.catalog-external-import{align-items:flex-start;flex-direction:column}.catalog-external-import .catalog-open-button{width:100%}}';
+    style.textContent = '.catalog-category-panel{margin:14px 0 17px;padding:14px 15px;border:1px solid rgba(163,132,255,.24);border-radius:15px;background:rgba(25,31,62,.62)}.catalog-category-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}.catalog-category-heading strong,.catalog-category-heading small{display:block}.catalog-category-heading strong{font-size:12px;color:#f1edff}.catalog-category-heading small{margin-top:3px;font-size:9px;color:#aeb8d2}.catalog-category-heading a{font-size:9px;font-weight:800;color:#c6acff;text-decoration:none}.catalog-category-group{padding:7px 0;border-top:1px solid rgba(160,150,205,.12)}.catalog-category-group summary{cursor:pointer;color:#ded7f5;font-size:10px;font-weight:850;list-style:none}.catalog-category-group summary::-webkit-details-marker{display:none}.catalog-category-group summary:after{content:"＋";float:right;color:#b9a1f1}.catalog-category-group[open] summary:after{content:"−"}.catalog-category-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.catalog-category-chip{padding:6px 9px;border:1px solid rgba(164,145,220,.22);border-radius:999px;background:rgba(255,255,255,.035);color:#cfd1e8;font-size:9px;font-weight:700}.catalog-category-chip.active{background:#6846c7;border-color:#9879ed;color:#fff}.catalog-open-button:disabled{opacity:.55;cursor:wait}.catalog-open-button.is-downloaded{background:#176b50;color:#fff}.catalog-source-pill{background:rgba(131,92,214,.19);border-color:rgba(168,129,255,.38);color:#d8c3ff}.catalog-meta span:last-child{max-width:58%;text-align:right;line-height:1.4}.catalog-card-actions{flex-wrap:wrap}.catalog-card-actions .catalog-source-link{font-size:10px}.catalog-open-button:disabled{opacity:.55;cursor:wait}.catalog-external-sources{margin:14px 0 18px;padding:16px;border:1px solid rgba(163,132,255,.3);border-radius:16px;background:linear-gradient(145deg,rgba(44,38,91,.88),rgba(20,29,59,.94));box-shadow:0 8px 24px rgba(0,0,0,.13)}.catalog-external-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.catalog-external-eyebrow{font-size:9px;font-weight:850;letter-spacing:1.4px;color:#b89aff}.catalog-external-top h3{margin:4px 0;font-size:17px;color:#fff}.catalog-external-top p{margin:0;color:#bfc5dd;font-size:11px;line-height:1.5}.catalog-external-format{flex:none;padding:6px 9px;border-radius:999px;border:1px solid rgba(180,153,255,.3);background:rgba(131,92,214,.16);color:#d8c8ff;font-size:9px;font-weight:800}.catalog-external-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.catalog-external-link{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border:1px solid rgba(166,146,255,.25);border-radius:12px;background:rgba(14,22,48,.54);text-decoration:none;color:#fff;transition:border-color .18s,transform .18s}.catalog-external-link:hover{border-color:#a98bff;transform:translateY(-1px)}.catalog-external-icon{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#8b45e9,#4d64d8);color:#fff;font-weight:900}.catalog-external-link strong,.catalog-external-link small{display:block}.catalog-external-link strong{font-size:12px}.catalog-external-link small{margin-top:3px;color:#aeb8d2;font-size:9px}.catalog-external-arrow{margin-left:auto;color:#cbb6ff;font-size:18px}.catalog-external-import{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(170,155,220,.16);color:#dbe0f4;font-size:11px}.catalog-external-import .catalog-open-button{padding:9px 13px;border:0;border-radius:999px;background:linear-gradient(110deg,#923ff0,#5930cf);color:#fff;font-size:10px;font-weight:850;cursor:pointer}.catalog-external-note{margin:10px 0 0;color:#929ebb;font-size:9px;line-height:1.5}@media(max-width:640px){.catalog-meta span:last-child{max-width:62%;font-size:9px}.catalog-external-links{grid-template-columns:1fr}.catalog-external-sources{padding:13px}.catalog-external-import{align-items:flex-start;flex-direction:column}.catalog-external-import .catalog-open-button{width:100%}}';
     document.head.appendChild(style);
   }
 
