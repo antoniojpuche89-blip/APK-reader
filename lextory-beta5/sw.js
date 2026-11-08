@@ -1,0 +1,6 @@
+const CACHE_NAME='lextory-shell-v7';
+const CORE_FILES=['./','./index.html','./styles.css','./dashboard.css','./app.js','./dashboard.js','./manifest.webmanifest','./icon.svg'];
+const IMAGE_HOSTS=['gutenberg.org','gutendex.com'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(CORE_FILES)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('lextory-shell-')&&k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url),own=u.origin===self.location.origin,cdn=['cdnjs.cloudflare.com','cdn.jsdelivr.net'].includes(u.hostname),img=r.destination==='image'&&IMAGE_HOSTS.some(h=>u.hostname===h||u.hostname.endsWith('.'+h));if(!own&&!cdn&&!img)return;e.respondWith(caches.match(r).then(c=>c||fetch(r).then(res=>{if(res&&(res.ok||res.type==='opaque'))caches.open(CACHE_NAME).then(cache=>cache.put(r,res.clone())).catch(()=>{});return res;}).catch(()=>own?caches.match('./index.html'):Promise.reject(new Error('Recurso externo no disponible sin conexión.')))));});

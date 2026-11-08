@@ -1,0 +1,20 @@
+{
+  "name": "Lextory — Lee, traduce y aprende",
+  "short_name": "Lextory",
+  "description": "Lee EPUB y PDF, traduce palabras y aprende con tarjetas.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080b20",
+  "theme_color": "#080b20",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
