@@ -139,7 +139,7 @@ jobs:
           grep -q 'delete-account.html' site/cloud-sync.js
           grep -q 'lector-vocabulary-updated-at' site/app.js
           grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
-          grep -q 'lextory-shell-v22' site/sw.js
+          grep -q 'lextory-shell-v23' site/sw.js
           grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi

@@ -315,52 +315,136 @@
     }
   }
 
-  async function importGutenberg(book, button) {
-    if (button.disabled) return;
-    const id = Number(String(book.id).replace('gut-', ''));
-    if (!Number.isSafeInteger(id) || id <= 0) return openBookSource(book.sourceUrl);
-    const base = 'https://gutenberg.pglaf.org/cache/epub/' + id + '/';
-    const candidates = book.formats && book.formats['application/epub+zip'] || '';
-    const noImages = /noimages/i.test(candidates);
-    const names = noImages ? ['pg' + id + '.epub','pg' + id + '-images.epub'] : ['pg' + id + '.epub','pg' + id + '-images.epub'];
-    let fallback = null;
-    try { fallback = window.open('about:blank', '_blank'); } catch (_) {}
-    const original = button.textContent;
-    button.disabled = true; button.textContent = 'Preparando EPUB…';
+  function openLibraryDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('lector-biblioteca-v1', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('No se pudo abrir la biblioteca.'));
+      request.onblocked = () => reject(new Error('La biblioteca está ocupada.'));
+    });
+  }
+
+  function normaliseBookKey(value) {
+    return String(value || '')
+      .replace(/\.epub$/i, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  async function findStoredBook(title, fileName) {
+    const db = await openLibraryDatabase();
     try {
-      let blob = null;
-      for (const name of names) {
-        try {
-          const response = await fetch(base + name, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
-          if (!response.ok) continue;
-          const candidate = await response.blob();
-          if (candidate.size && !(candidate.type || '').includes('text/html')) { blob = candidate; break; }
-        } catch (_) {}
-      }
-      if (!blob) throw new Error('El servidor no permite importar automáticamente.');
-      if (fallback && !fallback.closed) fallback.close();
-      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\/:*?"<>|]+/g, '-').trim();
-      const file = new File([blob], safeTitle + '.epub', { type: 'application/epub+zip', lastModified: Date.now() });
-      const input = $('file-input');
-      if (input && typeof DataTransfer !== 'undefined') {
-        const transfer = new DataTransfer(); transfer.items.add(file); input.files = transfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        notify('Añadiendo «' + book.title + '» a tu biblioteca…');
-      } else {
-        const link = document.createElement('a'); const objectUrl = URL.createObjectURL(blob);
-        link.href = objectUrl; link.download = safeTitle + '.epub'; document.body.appendChild(link); link.click(); link.remove();
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
-        notify('EPUB descargado. Impórtalo desde Mi biblioteca.');
-      }
-    } catch (error) {
-      if (fallback && !fallback.closed) fallback.location.replace(book.sourceUrl);
-      else openBookSource(book.sourceUrl);
-      notify('Hemos abierto la ficha oficial de Gutenberg para descargar el EPUB.');
+      const tx = db.transaction('books', 'readonly');
+      const request = tx.objectStore('books').getAll();
+      const rows = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error || new Error('No se pudo consultar la biblioteca.'));
+      });
+      const wantedTitle = normaliseBookKey(title);
+      const wantedFile = normaliseBookKey(fileName);
+      return rows.find(row => {
+        const hasFile = row.blob && Number(row.blob.size || 0) > 0;
+        if (!hasFile) return false;
+        return normaliseBookKey(row.title) === wantedTitle ||
+          normaliseBookKey(row.fileName) === wantedFile;
+      }) || null;
     } finally {
-      button.disabled = false; button.textContent = original;
+      db.close();
     }
   }
 
+  async function waitForStoredBook(title, fileName, timeoutMs) {
+    const deadline = Date.now() + (timeoutMs || 20000);
+    while (Date.now() < deadline) {
+      const saved = await findStoredBook(title, fileName);
+      if (saved) return saved;
+      await new Promise(resolve => setTimeout(resolve, 350));
+    }
+    return null;
+  }
+
+  async function importGutenberg(book, button) {
+    if (button.disabled) return;
+    const id = Number(String(book.id).replace('gut-', ''));
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      notify('No se ha podido identificar el EPUB de Project Gutenberg.');
+      return;
+    }
+
+    const input = $('file-input');
+    if (!input || typeof DataTransfer === 'undefined') {
+      notify('Este navegador no permite enviar el EPUB directamente a la biblioteca. Prueba con Chrome o Edge actualizado.');
+      return;
+    }
+
+    const safeTitle = (book.title || 'Libro ' + id)
+      .replace(/[\\/:*?"<>|]+/g, '-').trim();
+    const fileName = safeTitle + '.epub';
+    const original = button.textContent;
+    let imported = false;
+    button.disabled = true;
+    button.textContent = 'Comprobando biblioteca…';
+
+    try {
+      const existing = await findStoredBook(book.title, fileName);
+      if (existing) {
+        imported = true;
+        button.textContent = '✓ Descargado';
+        button.classList.add('is-downloaded');
+        notify('«' + book.title + '» ya está guardado en Lextory.');
+        return;
+      }
+
+      button.textContent = 'Descargando EPUB…';
+      const base = 'https://gutenberg.pglaf.org/cache/epub/' + id + '/';
+      const names = ['pg' + id + '.epub', 'pg' + id + '-images.epub'];
+      let blob = null;
+      for (const name of names) {
+        try {
+          const response = await fetch(base + name, {
+            mode: 'cors', credentials: 'omit', cache: 'no-store'
+          });
+          if (!response.ok) continue;
+          const candidate = await response.blob();
+          if (candidate.size && !(candidate.type || '').includes('text/html')) {
+            blob = candidate;
+            break;
+          }
+        } catch (_) {}
+      }
+      if (!blob) throw new Error('Project Gutenberg no ha permitido obtener el EPUB automáticamente.');
+
+      const file = new File([blob], fileName, {
+        type: 'application/epub+zip',
+        lastModified: Date.now()
+      });
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      button.textContent = 'Guardando en Lextory…';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      const saved = await waitForStoredBook(book.title, fileName, 25000);
+      if (!saved) {
+        throw new Error('El EPUB se ha enviado al lector, pero no se ha podido confirmar su guardado. Revisa Mi biblioteca antes de volver a descargarlo.');
+      }
+
+      imported = true;
+      button.textContent = '✓ Descargado';
+      button.classList.add('is-downloaded');
+      window.dispatchEvent(new CustomEvent('lextory:library-updated', {
+        detail: { bookId: saved.id, title: saved.title || book.title }
+      }));
+      notify('«' + book.title + '» descargado y guardado en tu biblioteca.');
+    } catch (error) {
+      notify(error && error.message ? error.message : 'No se pudo guardar el EPUB en Lextory.');
+    } finally {
+      if (!imported) {
+        button.disabled = false;
+        button.textContent = original;
+      }
+    }
+  }
 
 
   function activateCatalog() {

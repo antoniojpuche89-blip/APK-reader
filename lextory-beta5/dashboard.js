@@ -3,6 +3,7 @@
 const $ = id => document.getElementById(id);
 const KEY = 'lector-vocabulary-v1';
 let words = [], index = 0, flipped = false, filter = 'all', query = '';
+let localBookRows = new Map();
 const getWords = () => { try { const v=JSON.parse(localStorage.getItem(KEY)||'[]'); return Array.isArray(v)?v:[]; } catch (_) { return []; } };
 const due = () => { const a=words.filter(x=>x.mastery!=='known'); return a.length?a:words; };
 function updateCard(){
@@ -30,11 +31,40 @@ function filterBooks(){
  const list=$('book-list');if(!list)return;
  list.querySelectorAll('.book-card').forEach(card=>{
   const txt=(card.textContent||'').toLowerCase();
-  const pct=parseFloat(card.querySelector('.book-progress span')?.style.width||'0')||0;
+  const row=localBookRows.get(String(card.dataset.bookId||''));
+  const savedPct=row&&Number.isFinite(Number(row.progress))?Math.max(0,Math.min(100,Number(row.progress))):null;
+  const fill=card.querySelector('.book-progress span');
+  let pct=savedPct!==null?savedPct:(parseFloat(fill?.style.width||'0')||0);
+  pct=Math.max(0,Math.min(100,pct));
+  if(fill&&savedPct!==null)fill.style.width=pct+'%';
   const ok=(!query||txt.includes(query))&&(filter==='all'||(filter==='reading'&&pct>0&&pct<100)||(filter==='pending'&&pct<=0)||(filter==='completed'&&pct>=100));
   card.classList.toggle('dash-filter-hidden',!ok);
   const cover=card.querySelector('.book-cover-mini');
-  if(cover&&!cover.querySelector('.dash-status')){const badge=document.createElement('span');badge.className='dash-status'+(pct>=100?' done':pct===0?' pending':'');badge.textContent=pct>=100?'Completado':pct>0?'Leyendo':'Pendiente';cover.appendChild(badge);}
+  if(cover){
+   let badge=cover.querySelector('.dash-status');
+   if(!badge){badge=document.createElement('span');badge.className='dash-status';cover.appendChild(badge);}
+   badge.className='dash-status'+(pct>=100?' done':pct===0?' pending':'');
+   badge.textContent=pct>=100?'Completado':pct>0?'Leyendo':'Pendiente';
+
+   const hasStoredFile=Boolean(row&&row.blob&&Number(row.blob.size||0)>0);
+   let downloadBadge=cover.querySelector('.dash-download-status');
+   if(hasStoredFile&&!downloadBadge){
+    downloadBadge=document.createElement('span');
+    downloadBadge.className='dash-download-status';
+    downloadBadge.textContent='Descargado';
+    cover.appendChild(downloadBadge);
+   }else if(!hasStoredFile&&downloadBadge){
+    downloadBadge.remove();
+   }
+  }
+  const progress=card.querySelector('.book-progress');
+  const detail=card.querySelector('.book-detail');
+  if(detail&&progress){
+   let label=detail.querySelector('.dash-progress-label');
+   if(!label){label=document.createElement('small');label.className='dash-progress-label';progress.insertAdjacentElement('afterend',label);}
+   label.textContent=pct.toLocaleString('es-IE',{maximumFractionDigits:0})+'% leído';
+   label.setAttribute('aria-label',pct.toFixed(0)+' por ciento leído');
+  }
  });
  const count=$('book-count');if(count)count.textContent=list.querySelectorAll('.book-card').length;
 }
@@ -62,6 +92,8 @@ function initReadingStats(){
    const tx=db.transaction('books','readonly'),get=tx.objectStore('books').getAll();
    const rows=await new Promise((resolve,reject)=>{get.onsuccess=()=>resolve(get.result||[]);get.onerror=()=>reject(get.error);});
    db.close();
+   localBookRows=new Map(rows.map(row=>[String(row.id),row]));
+   filterBooks();
    const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
    const activeBooks=rows.filter(b=>Number(b.progress||0)>0&&Number(b.progress||0)<100).length;
    if($('dash-stat-books'))$('dash-stat-books').textContent=completed.toLocaleString('es-IE');
@@ -88,6 +120,7 @@ function initReadingStats(){
  document.addEventListener('click',e=>{if(e.target.closest('#back-button'))tick(true);},true);
  window.addEventListener('beforeunload',()=>tick(true));
  setInterval(()=>{tick();},15000);
+ window.addEventListener('lextory:library-updated',()=>{renderBooks();filterBooks();});
  const list=$('book-list');if(list)new MutationObserver(renderBooks).observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
  window.addEventListener('storage',e=>{if(e.key===ACTIVITY_KEY){try{data=JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}');}catch(_){}renderTime();}});
  window.addEventListener('lextory:cloud-vocabulary-restored',()=>{if($('dash-stat-words'))$('dash-stat-words').textContent=getWords().length.toLocaleString('es-IE');});
