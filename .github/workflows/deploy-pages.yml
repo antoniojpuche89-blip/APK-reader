@@ -65,7 +65,7 @@ jobs:
           s = s.replace('Clásicos en distintos idiomas con portadas reales, cuando el catálogo las proporciona.', 'Busca por título o autor en Project Gutenberg. Añade los EPUB disponibles directamente a tu biblioteca o utiliza los enlaces externos para importar archivos.')
           s = s.replace('Buscar título o autor…', 'Buscar en Project Gutenberg: título o autor…')
           s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'Project Gutenberg y encuentra tu próxima lectura.')
-          extras = '''\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud-sync.js"></script>\n  <script src="premium-ui.js"></script>\n  <script src="reader-enhancements.js"></script>'''
+          extras = '''\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud-sync.js"></script>\n  <script src="premium-ui.js"></script>\n  <script src="reader-enhancements.js"></script>'''
           if 'cloud-sync.js' not in s:
               s = s.replace('<script src="dashboard.js"></script>', '<script src="dashboard.js"></script>' + extras)
           p.write_text(s)
@@ -91,7 +91,8 @@ jobs:
           grep -q 'privacy.html' site/cloud-sync.js
           grep -q 'delete-account.html' site/cloud-sync.js
           grep -q 'lector-vocabulary-updated-at' site/app.js
-          grep -q 'lextory-shell-v15' site/sw.js
+          grep -q 'lextory-shell-v16' site/sw.js
+          grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi
           grep -q 'https://ww3.ebookelo.com/' site/catalog-universal.js

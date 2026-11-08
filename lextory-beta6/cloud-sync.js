@@ -90,6 +90,17 @@
   }
   function renderAccount() {
     const logged = Boolean(session && session.user);
+    const warning = $('account-config-warning');
+    if (warning) {
+      const detail = warning.querySelector('span');
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        if (detail) detail.textContent = 'El navegador no ha cargado el módulo de autenticación. Prueba a recargar la página; Lextory intentará usar un servidor alternativo. Tus libros siguen guardados localmente.';
+      } else if (!/^https:\/\//i.test(CONFIG.url || '') || !CONFIG.publishableKey || CONFIG.publishableKey.length < 20) {
+        if (detail) detail.textContent = 'Falta la configuración pública del proyecto Supabase. No se ha enviado ningún dato.';
+      } else if (detail) {
+        detail.textContent = 'La conexión de cuentas aún no está inicializada. Recarga Lextory para volver a intentarlo. Tus libros siguen guardados localmente.';
+      }
+    }
     $('account-auth-panel')?.classList.toggle('hidden', logged);
     $('account-user-panel')?.classList.toggle('hidden', !logged);
     $('account-config-warning')?.classList.toggle('hidden', configured);
@@ -310,7 +321,13 @@
   }
   async function submitAuth(event) {
     event.preventDefault();
-    if (!configured) { message('Falta conectar y configurar el proyecto de autenticación. No hemos enviado ningún dato.', true); return; }
+    if (!configured) {
+      const sdkMissing = !window.supabase || typeof window.supabase.createClient !== 'function';
+      message(sdkMissing
+        ? 'No se ha cargado el módulo de Supabase. Recarga Lextory con Ctrl + F5 e inténtalo de nuevo.'
+        : 'La configuración de Supabase no está disponible. No se ha enviado ningún dato.', true);
+      return;
+    }
     const signup = document.querySelector('[data-account-mode="signup"]')?.classList.contains('active');
     const email = $('account-email').value.trim(), password = $('account-password').value;
     if (password.length < 8) return message('Usa una contraseña de al menos 8 caracteres.', true);
@@ -374,8 +391,11 @@
     if (!configured) {
       status('Conecta Supabase para activar la nube.', 'off');
       renderAccount();
-      $('account-submit').disabled = true; $('account-reset').disabled = true;
-      $('account-submit').title = 'Cuentas pendientes de configuración';
+      // Keep the primary action clickable so the user receives a clear diagnostic
+      // instead of a button that appears to do nothing.
+      $('account-submit').disabled = false;
+      $('account-reset').disabled = false;
+      $('account-submit').title = 'Comprobar la conexión con Supabase';
       return;
     }
     client = window.supabase.createClient(CONFIG.url, CONFIG.publishableKey, {
