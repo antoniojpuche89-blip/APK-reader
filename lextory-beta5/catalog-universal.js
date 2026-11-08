@@ -484,6 +484,42 @@
     if (meta) meta.textContent = 'Project Gutenberg · Google Books';
     const intro = document.querySelector('.catalog-intro');
     if (intro) intro.textContent = 'Busca por título o autor en dos catálogos. Añade directamente los EPUB que estén disponibles como descarga de dominio público.';
+
+    const externalSources = document.createElement('section');
+    externalSources.className = 'catalog-external-sources';
+    externalSources.setAttribute('aria-labelledby', 'catalog-external-title');
+    externalSources.innerHTML = `
+      <div class="catalog-external-top">
+        <div>
+          <span class="catalog-external-eyebrow">OTRAS FUENTES</span>
+          <h3 id="catalog-external-title">Descargas externas</h3>
+          <p>Abre una web externa, descarga el archivo en tu dispositivo y después impórtalo en Lextory.</p>
+        </div>
+        <span class="catalog-external-format">EPUB · PDF</span>
+      </div>
+      <div class="catalog-external-links">
+        <a class="catalog-external-link" href="https://ww3.ebookelo.com/" target="_blank" rel="noopener noreferrer">
+          <span class="catalog-external-icon">E</span>
+          <span><strong>Ebookelo</strong><small>Abrir catálogo externo</small></span>
+          <span class="catalog-external-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="catalog-external-link" href="https://ww3.lectulandia.com/" target="_blank" rel="noopener noreferrer">
+          <span class="catalog-external-icon">L</span>
+          <span><strong>Lectulandia</strong><small>Abrir catálogo externo</small></span>
+          <span class="catalog-external-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <div class="catalog-external-import">
+        <span>¿Ya has descargado el libro?</span>
+        <button class="catalog-open-button" id="catalog-import-external" type="button">Importar archivo descargado ↓</button>
+      </div>
+      <p class="catalog-external-note">Lextory no accede ni descarga contenido de estas webs. Comprueba que tienes derecho a descargar cada obra. La importación se realiza desde un archivo EPUB o PDF guardado en tu dispositivo.</p>
+    `;
+    const catalogIntro = document.querySelector('.catalog-intro');
+    if (catalogIntro && !document.querySelector('.catalog-external-sources')) {
+      catalogIntro.insertAdjacentElement('afterend', externalSources);
+    }
+
     const input = $('catalog-search');
     if (input) input.placeholder = 'Buscar en 2 catálogos: título o autor…';
 
@@ -491,6 +527,13 @@
       const trigger = event.target.closest('#catalog-tab,#open-catalog-button,#featured-view-all,#home-catalog-button');
       if (trigger) {
         event.preventDefault(); event.stopImmediatePropagation(); activateCatalog(); return;
+      }
+      if (event.target.closest('#catalog-import-external')) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        const fileInput = $('file-input');
+        if (fileInput) fileInput.click();
+        else notify('No se ha encontrado el selector de archivos.');
+        return;
       }
       if (event.target.closest('#clear-catalog-search')) {
         event.preventDefault(); event.stopImmediatePropagation();
@@ -514,7 +557,7 @@
     }, true);
 
     const style = document.createElement('style');
-    style.textContent = '.catalog-source-pill{background:rgba(131,92,214,.19);border-color:rgba(168,129,255,.38);color:#d8c3ff}.catalog-meta span:last-child{max-width:58%;text-align:right;line-height:1.4}.catalog-card-actions{flex-wrap:wrap}.catalog-card-actions .catalog-source-link{font-size:10px}.catalog-open-button:disabled{opacity:.55;cursor:wait}@media(max-width:640px){.catalog-meta span:last-child{max-width:62%;font-size:9px}}';
+    style.textContent = '.catalog-source-pill{background:rgba(131,92,214,.19);border-color:rgba(168,129,255,.38);color:#d8c3ff}.catalog-meta span:last-child{max-width:58%;text-align:right;line-height:1.4}.catalog-card-actions{flex-wrap:wrap}.catalog-card-actions .catalog-source-link{font-size:10px}.catalog-open-button:disabled{opacity:.55;cursor:wait}.catalog-external-sources{margin:14px 0 18px;padding:16px;border:1px solid rgba(163,132,255,.3);border-radius:16px;background:linear-gradient(145deg,rgba(44,38,91,.88),rgba(20,29,59,.94));box-shadow:0 8px 24px rgba(0,0,0,.13)}.catalog-external-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.catalog-external-eyebrow{font-size:9px;font-weight:850;letter-spacing:1.4px;color:#b89aff}.catalog-external-top h3{margin:4px 0;font-size:17px;color:#fff}.catalog-external-top p{margin:0;color:#bfc5dd;font-size:11px;line-height:1.5}.catalog-external-format{flex:none;padding:6px 9px;border-radius:999px;border:1px solid rgba(180,153,255,.3);background:rgba(131,92,214,.16);color:#d8c8ff;font-size:9px;font-weight:800}.catalog-external-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.catalog-external-link{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border:1px solid rgba(166,146,255,.25);border-radius:12px;background:rgba(14,22,48,.54);text-decoration:none;color:#fff;transition:border-color .18s,transform .18s}.catalog-external-link:hover{border-color:#a98bff;transform:translateY(-1px)}.catalog-external-icon{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#8b45e9,#4d64d8);color:#fff;font-weight:900}.catalog-external-link strong,.catalog-external-link small{display:block}.catalog-external-link strong{font-size:12px}.catalog-external-link small{margin-top:3px;color:#aeb8d2;font-size:9px}.catalog-external-arrow{margin-left:auto;color:#cbb6ff;font-size:18px}.catalog-external-import{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(170,155,220,.16);color:#dbe0f4;font-size:11px}.catalog-external-import .catalog-open-button{padding:9px 13px;border:0;border-radius:999px;background:linear-gradient(110deg,#923ff0,#5930cf);color:#fff;font-size:10px;font-weight:850;cursor:pointer}.catalog-external-note{margin:10px 0 0;color:#929ebb;font-size:9px;line-height:1.5}@media(max-width:640px){.catalog-meta span:last-child{max-width:62%;font-size:9px}.catalog-external-links{grid-template-columns:1fr}.catalog-external-sources{padding:13px}.catalog-external-import{align-items:flex-start;flex-direction:column}.catalog-external-import .catalog-open-button{width:100%}}';
     document.head.appendChild(style);
   }
 

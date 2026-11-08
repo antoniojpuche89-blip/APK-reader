@@ -1,4 +1,4 @@
-const CACHE_NAME='lextory-shell-v10';
+const CACHE_NAME='lextory-shell-v11';
 const CORE_FILES=['./','./index.html','./styles.css','./dashboard.css','./app.js','./dashboard.js','./catalog-universal.js','./manifest.webmanifest','./icon.svg'];
 const IMAGE_HOSTS=['gutenberg.org','gutendex.com','books.google.com','googleusercontent.com'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(CORE_FILES)).then(()=>self.skipWaiting())));

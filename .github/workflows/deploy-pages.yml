@@ -1,4 +1,4 @@
-name: Deploy Lextory Beta 5.3 Gutenberg and Google Books catalogue to GitHub Pages
+name: Deploy Lextory Beta 5.4 with external download links
 
 on:
   push:
@@ -66,6 +66,10 @@ jobs:
           grep -q 'Google Books' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library' site/catalog-universal.js; then echo 'Open Library still present'; exit 1; fi
           grep -q 'importGoogle' site/catalog-universal.js
+          grep -q 'https://ww3.ebookelo.com/' site/catalog-universal.js
+          grep -q 'https://ww3.lectulandia.com/' site/catalog-universal.js
+          grep -q 'catalog-import-external' site/catalog-universal.js
+          grep -q "lextory-shell-v11" site/sw.js
           grep -q "lextory-shell-v10" site/sw.js
           node --check site/app.js
           node --check site/catalog-universal.js
