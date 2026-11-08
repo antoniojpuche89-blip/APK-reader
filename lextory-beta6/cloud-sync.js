@@ -143,6 +143,37 @@
     try { const data = JSON.parse(localStorage.getItem(VOCAB_KEY) || '[]'); return Array.isArray(data) ? data : []; }
     catch (_) { return []; }
   }
+  function vocabularyIdentity(word) {
+    if (typeof word === 'string') return 'text:' + word.trim().toLocaleLowerCase();
+    if (!word || typeof word !== 'object') return 'raw:' + String(word);
+    const original = String(word.original || word.word || word.term || '').trim().toLocaleLowerCase();
+    if (!original) return 'raw:' + JSON.stringify(word);
+    const translated = String(word.translated || word.translation || '').trim().toLocaleLowerCase();
+    const source = String(word.source || word.sourceLanguage || '').trim().toLocaleLowerCase();
+    const book = String(word.bookId || word.bookTitle || word.book || '').trim().toLocaleLowerCase();
+    return [original, translated, source, book].join('|');
+  }
+  function mergeVocabulary(localWords, remoteWords) {
+    const merged = new Map();
+    for (const word of [...(Array.isArray(remoteWords) ? remoteWords : []), ...(Array.isArray(localWords) ? localWords : [])]) {
+      const key = vocabularyIdentity(word);
+      const previous = merged.get(key);
+      if (!previous || typeof word !== 'object' || typeof previous !== 'object') {
+        if (!previous) merged.set(key, word);
+        continue;
+      }
+      const timestamp = item => {
+        const value = item.updatedAt || item.savedAt || item.lastReviewed || 0;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : (Date.parse(value) || 0);
+      };
+      const newest = timestamp(word) >= timestamp(previous) ? word : previous;
+      const combined = { ...previous, ...word, ...newest };
+      if (previous.mastery === 'known' || word.mastery === 'known') combined.mastery = 'known';
+      merged.set(key, combined);
+    }
+    return Array.from(merged.values());
+  }
   function localVocabularyTimestamp(words) {
     const stored = Number(localStorage.getItem('lector-vocabulary-updated-at') || 0);
     if (stored) return stored;
@@ -193,16 +224,20 @@
           await saveLocalBook(db, book);
           paintProgress(book);
         } else if (!remote || localTime >= remoteTime) {
+          const formatHint = String(book.format || book.fileName || book.blob.type || 'epub').toLowerCase();
+          const safeFormat = formatHint.includes('pdf') ? 'pdf' : 'epub';
+          const safeProgress = Math.max(0, Math.min(100, Number(book.progress || 0)));
+          const safeLastPage = Math.max(1, Math.floor(Number(book.lastPage || 1)));
           const payload = {
             user_id: session.user.id,
             content_hash: book.contentHash,
             title: book.title || 'Libro',
             file_name: book.fileName || '',
-            format: book.format || 'epub',
-            progress: Number(book.progress || 0),
-            last_page: Number(book.lastPage || 1),
+            format: safeFormat,
+            progress: safeProgress,
+            last_page: safeLastPage,
             last_cfi: book.lastCfi || null,
-            total_pages: book.totalPages || null,
+            total_pages: book.totalPages ? Math.max(1, Math.floor(Number(book.totalPages))) : null,
             updated_at: new Date(Math.max(localTime, Date.now())).toISOString()
           };
           const saved = await client.from('reading_progress').upsert(payload, { onConflict: 'user_id,content_hash' });
@@ -214,23 +249,32 @@
       const remoteStateResult = await client.from('user_learning_state').select('vocabulary,updated_at').maybeSingle();
       if (remoteStateResult.error) throw remoteStateResult.error;
       const remoteState = remoteStateResult.data;
-      const localVocabTime = localVocabularyTimestamp(localWords);
-      const remoteVocabTime = remoteState ? Date.parse(remoteState.updated_at || '') : 0;
-      if (remoteState && remoteVocabTime > localVocabTime) {
-        localStorage.setItem(VOCAB_KEY, JSON.stringify(Array.isArray(remoteState.vocabulary) ? remoteState.vocabulary : []));
-        localStorage.setItem('lector-vocabulary-updated-at', String(remoteVocabTime));
-        lastVocab = localStorage.getItem(VOCAB_KEY) || '[]';
+      const remoteWords = remoteState && Array.isArray(remoteState.vocabulary) ? remoteState.vocabulary : [];
+      const mergedWords = mergeVocabulary(localWords, remoteWords);
+      const mergedJson = JSON.stringify(mergedWords);
+      const localJson = JSON.stringify(localWords);
+      const remoteJson = JSON.stringify(remoteWords);
+      const localChanged = localJson !== mergedJson;
+      const remoteChanged = !remoteState || remoteJson !== mergedJson;
+
+      if (localChanged) {
+        localStorage.setItem(VOCAB_KEY, mergedJson);
+        lastVocab = mergedJson;
+        localStorage.setItem('lector-vocabulary-updated-at', String(Date.now()));
         applyingRemote = true;
         window.dispatchEvent(new CustomEvent('lextory:cloud-vocabulary-restored'));
-      } else {
+      } else if (remoteState) {
+        localStorage.setItem('lector-vocabulary-updated-at', String(Date.parse(remoteState.updated_at || '') || Date.now()));
+      }
+
+      if (remoteChanged) {
         const statePayload = {
           user_id: session.user.id,
-          vocabulary: localWords,
-          updated_at: new Date(Math.max(localVocabTime, Date.now())).toISOString()
+          vocabulary: mergedWords,
+          updated_at: new Date().toISOString()
         };
         const savedState = await client.from('user_learning_state').upsert(statePayload, { onConflict: 'user_id' });
         if (savedState.error) throw savedState.error;
-        localStorage.setItem('lector-vocabulary-updated-at', String(Date.now()));
       }
       status('Sincronizado · ' + new Date().toLocaleTimeString('es-IE', { hour: '2-digit', minute: '2-digit' }), 'ok');
       lastSyncAt = Date.now();

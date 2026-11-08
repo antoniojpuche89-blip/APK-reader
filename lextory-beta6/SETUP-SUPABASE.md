@@ -22,3 +22,14 @@ En lextory-beta6/supabase-config.js rellena url y publishableKey con la Project 
 Se sincroniza el porcentaje, página/CFI de lectura y vocabulario. No se suben archivos ni portadas. Para continuar en otro dispositivo, el usuario importa allí su propia copia del libro; la huella SHA-256 de una muestra y el tamaño permiten asociar el progreso.
 
 Antes del registro público: configura SMTP, límites antiabuso, copias de seguridad y la política de privacidad final. Prueba RLS con dos cuentas distintas y comprueba que ningún usuario puede leer los datos de otro.
+
+
+## Conexión activada en Supabase (8 de noviembre de 2026)
+
+El proyecto Lextory ya tiene el esquema de sincronización aplicado. La app usa la URL del proyecto y la clave **publishable** en el navegador. No añadas nunca una clave secret/service-role a archivos públicos.
+
+Antes de permitir el registro real, configura en Supabase Authentication → URL Configuration:
+- Site URL: https://antoniojpuche89-blip.github.io/APK-reader/
+- Redirect URL permitida: https://antoniojpuche89-blip.github.io/APK-reader/
+
+El envío de correos de confirmación/restablecimiento debe configurarse con SMTP propio antes de abrir el registro al público. El SMTP de prueba gestionado por Supabase tiene límites y no es un servicio de entrega de producción.
