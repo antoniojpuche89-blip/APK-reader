@@ -338,7 +338,19 @@
       if (signup) {
         result = await client.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + window.location.pathname } });
         if (result.error) throw result.error;
-        message(result.data.session ? 'Cuenta creada. Sincronizando tus datos…' : 'Cuenta creada. Revisa tu correo para confirmar la dirección.');
+        if (result.data.session) {
+          session = result.data.session;
+          renderAccount();
+          await syncNow(false);
+          message('✓ ¡Cuenta creada con éxito! Tu cuenta ya está activa y puedes empezar a utilizar Lextory.', false);
+          toast('¡Cuenta creada con éxito!');
+        } else {
+          // Email confirmation is enabled: the account exists, but login is pending verification.
+          setMode('login');
+          $('account-password').value = '';
+          message('✓ ¡Cuenta creada con éxito! Hemos enviado un correo de confirmación a ' + email + '. Abre el enlace del mensaje y después inicia sesión en Lextory.', false);
+          toast('¡Cuenta creada! Revisa tu correo.');
+        }
       } else {
         result = await client.auth.signInWithPassword({ email, password });
         if (result.error) throw result.error;
