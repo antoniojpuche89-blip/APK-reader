@@ -136,76 +136,76 @@ jobs:
               start = app_js.index(import_start)
               end = app_js.index(import_end, start)
               new_import = r"""  async function importBook(file, metadata = {}, options = {}) {
-    if (!file) return null;
-    const ext = String(file.name || '').split('.').pop().toLowerCase();
-    if (!['epub', 'pdf'].includes(ext)) { showToast('Elige un archivo EPUB o PDF.'); return null; }
-    if (file.size > 180 * 1024 * 1024) { showToast('El archivo supera el límite recomendado de 180 MB.'); return null; }
-
-    try {
-      const normalise = value => String(value || '')
-        .replace(/\.(epub|pdf)$/i, '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const existingBooks = await getAllBooks();
-      const duplicate = existingBooks.find(book => {
-        if (!book.blob || !Number(book.blob.size || 0)) return false;
-        if (metadata.sourceKey && metadata.sourceId != null &&
+              if (!file) return null;
+              const ext = String(file.name || '').split('.').pop().toLowerCase();
+              if (!['epub', 'pdf'].includes(ext)) { showToast('Elige un archivo EPUB o PDF.'); return null; }
+              if (file.size > 180 * 1024 * 1024) { showToast('El archivo supera el límite recomendado de 180 MB.'); return null; }
+          
+              try {
+                const normalise = value => String(value || '')
+                  .replace(/\.(epub|pdf)$/i, '')
+                  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+                const existingBooks = await getAllBooks();
+                const duplicate = existingBooks.find(book => {
+                  if (!book.blob || !Number(book.blob.size || 0)) return false;
+                  if (metadata.sourceKey && metadata.sourceId != null &&
             book.sourceKey === metadata.sourceKey &&
             String(book.sourceId || '') === String(metadata.sourceId)) return true;
-        return metadata.allowTitleMatch !== false &&
+                  return metadata.allowTitleMatch !== false &&
           normalise(book.title || book.fileName) === normalise(metadata.title || safeBookTitle(file.name));
-      });
-      if (duplicate) {
-        await refreshLibrary();
-        if (options.openReader === true) openBook(duplicate.id);
-        return duplicate;
-      }
-
-      const id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(16).slice(2));
-      showToast('Guardando libro en tu biblioteca…');
-      let coverDataUrl = metadata.coverDataUrl || null;
-      if (!coverDataUrl) {
-        try { coverDataUrl = await extractBookCover(file, ext); }
-        catch (coverError) { console.info('El libro se guardará sin portada:', coverError); }
-      }
-
-      const book = {
-        id: id,
-        title: metadata.title || safeBookTitle(file.name),
-        fileName: file.name,
-        format: ext,
-        blob: file,
-        coverDataUrl: coverDataUrl || null,
-        addedAt: Date.now(),
-        updatedAt: Date.now(),
-        progress: 0,
-        lastPage: 1,
-        lastCfi: null,
-        totalPages: null,
-        sourceKey: metadata.sourceKey || null,
-        sourceId: metadata.sourceId == null ? null : String(metadata.sourceId)
-      };
-
-      await putBook(book);
-      await refreshLibrary();
-      if ($('file-input')) $('file-input').value = '';
-      showToast('Libro añadido a tu biblioteca.');
-      window.dispatchEvent(new CustomEvent('lextory:library-updated', {
-        detail: { bookId: id, title: book.title }
-      }));
-      if (options.openReader !== false) openBook(id);
-      return book;
-    } catch (error) {
-      console.error('No se pudo guardar el libro:', error);
-      showToast('No se pudo guardar el libro. Comprueba el espacio disponible.');
-      return null;
-    }
-  }
-
-  window.LEXTORY_BOOKS = window.LEXTORY_BOOKS || {};
-  window.LEXTORY_BOOKS.importFile = (file, metadata = {}, options = {}) => importBook(file, metadata, options);
-  window.LEXTORY_BOOKS.getAll = () => getAllBooks();
-  window.LEXTORY_BOOKS.refresh = () => refreshLibrary();
+                });
+                if (duplicate) {
+                  await refreshLibrary();
+                  if (options.openReader === true) openBook(duplicate.id);
+                  return duplicate;
+                }
+          
+                const id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(16).slice(2));
+                showToast('Guardando libro en tu biblioteca…');
+                let coverDataUrl = metadata.coverDataUrl || null;
+                if (!coverDataUrl) {
+                  try { coverDataUrl = await extractBookCover(file, ext); }
+                  catch (coverError) { console.info('El libro se guardará sin portada:', coverError); }
+                }
+          
+                const book = {
+                  id: id,
+                  title: metadata.title || safeBookTitle(file.name),
+                  fileName: file.name,
+                  format: ext,
+                  blob: file,
+                  coverDataUrl: coverDataUrl || null,
+                  addedAt: Date.now(),
+                  updatedAt: Date.now(),
+                  progress: 0,
+                  lastPage: 1,
+                  lastCfi: null,
+                  totalPages: null,
+                  sourceKey: metadata.sourceKey || null,
+                  sourceId: metadata.sourceId == null ? null : String(metadata.sourceId)
+                };
+          
+                await putBook(book);
+                await refreshLibrary();
+                if ($('file-input')) $('file-input').value = '';
+                showToast('Libro añadido a tu biblioteca.');
+                window.dispatchEvent(new CustomEvent('lextory:library-updated', {
+                  detail: { bookId: id, title: book.title }
+                }));
+                if (options.openReader !== false) openBook(id);
+                return book;
+              } catch (error) {
+                console.error('No se pudo guardar el libro:', error);
+                showToast('No se pudo guardar el libro. Comprueba el espacio disponible.');
+                return null;
+              }
+            }
+          
+            window.LEXTORY_BOOKS = window.LEXTORY_BOOKS || {};
+            window.LEXTORY_BOOKS.importFile = (file, metadata = {}, options = {}) => importBook(file, metadata, options);
+            window.LEXTORY_BOOKS.getAll = () => getAllBooks();
+            window.LEXTORY_BOOKS.refresh = () => refreshLibrary();
 """
               app_js = app_js[:start] + new_import + app_js[end:]
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
