@@ -7,10 +7,16 @@
   const normalize = text => String(text || '').replace(/\s+/g, ' ').trim();
 
   function pageText() {
-    try {
-      const text = window.LEXTORY_READER?.getCurrentPageText?.();
-      if (text && normalize(text)) return normalize(text);
-    } catch (_) {}
+    const currentPageReader = window.LEXTORY_READER?.getCurrentPageText;
+    if (typeof currentPageReader === 'function') {
+      try {
+        // If the exact active-page range is unavailable, do not fall back to the
+        // full EPUB chapter: that would start narration from the wrong place.
+        return normalize(currentPageReader());
+      } catch (_) {
+        return '';
+      }
+    }
     if (!$('reader-screen') || $('reader-screen').classList.contains('hidden')) return '';
     if (!$('pdf-viewer')?.classList.contains('hidden')) {
       return normalize($('pdf-text-layer')?.innerText || $('pdf-text-layer')?.textContent || '');
