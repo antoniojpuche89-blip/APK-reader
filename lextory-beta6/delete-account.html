@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b1024"><title>Eliminar cuenta · Lextory</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:#090d22;color:#f2f1ff;font:14px/1.6 Inter,system-ui,sans-serif}.card{width:min(480px,100%);padding:28px;border:1px solid rgba(177,155,255,.24);border-radius:22px;background:linear-gradient(145deg,#1b2045,#111832);box-shadow:0 20px 55px rgba(0,0,0,.25)}.brand{color:#c9acff;font-size:11px;font-weight:900;letter-spacing:3px}h1{font-size:27px;margin:12px 0 7px}.muted{color:#adb8d5;font-size:12px}label{display:block;margin:15px 0 6px;color:#d7d3ec;font-size:11px;font-weight:800}input{width:100%;padding:13px;border:1px solid rgba(177,155,255,.25);border-radius:10px;background:#101735;color:#fff;font-size:13px}button{width:100%;padding:13px;margin-top:14px;border:0;border-radius:10px;background:linear-gradient(110deg,#ad5cf3,#6650d9);color:#fff;font-weight:900;cursor:pointer}button:disabled{opacity:.5}.danger{background:#8e334d}.message{min-height:28px;color:#d7c6ff;font-size:11px;margin-top:12px}.legal{padding:12px;border:1px solid rgba(255,166,130,.2);border-radius:10px;background:rgba(142,51,77,.12);color:#e8c4c6;font-size:11px;margin-top:15px}a{color:#c7a8ff}
+</style></head><body><main class="card">
+<div class="brand">LEXTORY</div><h1>Eliminar mi cuenta</h1><p class="muted">Identifícate para eliminar permanentemente tu cuenta Lextory y los datos de sincronización asociados. Esta acción no se puede deshacer.</p>
+<div class="legal">Los archivos EPUB/PDF guardados localmente en cada dispositivo no se borrarán automáticamente. Elimina esos archivos desde la biblioteca de cada dispositivo.</div>
+<form id="delete-form"><label for="email">Correo de la cuenta</label><input id="email" type="email" autocomplete="email" required><label for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required><button id="login" type="submit">Verificar mi cuenta</button></form>
+<button class="danger" id="delete" type="button" disabled>Eliminar definitivamente mi cuenta</button><p class="message" id="message" role="status" aria-live="polite"></p>
+<p class="muted"><a href="./privacy.html">Política de privacidad</a> · <a href="./">Volver a Lextory</a></p>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./supabase-config.js"></script>
+<script>
+(() => {
+  const $=id=>document.getElementById(id),cfg=window.LEXTORY_SUPABASE_CONFIG||{};
+  let client=null,session=null;
+  const ready=Boolean(window.supabase&&cfg.url&&cfg.publishableKey&&cfg.publishableKey.length>20);
+  function say(text){$('message').textContent=text;}
+  if(ready)client=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:false}});
+  else{$('login').disabled=true;say('El servicio de cuentas aún no está configurado.');}
+  $('delete-form').addEventListener('submit',async event=>{
+    event.preventDefault();if(!client)return;$('login').disabled=true;say('Verificando…');
+    const result=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+    $('login').disabled=false;if(result.error){say(result.error.message);return;}
+    session=result.data.session;$('delete').disabled=false;say('Identidad verificada. Confirma si deseas continuar.');
+  });
+  $('delete').addEventListener('click',async()=>{
+    if(!session||!confirm('Confirmo que deseo eliminar mi cuenta Lextory y los datos de sincronización guardados en la nube.'))return;
+    $('delete').disabled=true;say('Eliminando cuenta y datos…');
+    const result=await client.functions.invoke('delete-account',{body:{}});
+    if(result.error){$('delete').disabled=false;say(result.error.message||'No se pudo completar la solicitud.');return;}
+    session=null;$('delete-form').reset();say('Tu cuenta y datos de nube han sido eliminados. Los archivos locales siguen intactos.');
+  });
+})();
+</script></main></body></html>
