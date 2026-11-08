@@ -83,6 +83,49 @@ jobs:
               if anchor not in app_js:
                   raise SystemExit("Could not locate application init hook")
               app_js = app_js.replace(anchor, event_hook + anchor, 1)
+          location_hook = "    state.epubRendition.on('relocated', location => {" + chr(10) + "      if (!location || !location.start) return;"
+          if "state.epubCurrentLocation = location;" not in app_js:
+              if location_hook not in app_js:
+                  raise SystemExit("Could not locate EPUB location hook")
+              app_js = app_js.replace(location_hook, location_hook + chr(10) + "      state.epubCurrentLocation = location;", 1)
+          clear_location_anchor = "    state.epubBook = null; state.epubRendition = null; state.pdfDoc = null;"
+          if "state.epubCurrentLocation = null;" not in app_js:
+              if clear_location_anchor not in app_js:
+                  raise SystemExit("Could not locate reader reset hook")
+              app_js = app_js.replace(clear_location_anchor, clear_location_anchor + chr(10) + "    state.epubCurrentLocation = null;", 1)
+          page_api = """  const getCurrentPageTextBase = getCurrentPageText;
+  getCurrentPageText = function() {
+    if (state.currentBook?.format === 'pdf') return state.pdfPageText || '';
+    if (state.epubRendition) {
+      try {
+        const location = state.epubCurrentLocation || state.epubRendition.currentLocation();
+        if (location?.start?.cfi && location?.end?.cfi) {
+          const start = state.epubRendition.getRange(location.start.cfi);
+          const end = state.epubRendition.getRange(location.end.cfi);
+          const doc = start?.startContainer?.ownerDocument;
+          if (doc && end?.startContainer?.ownerDocument === doc) {
+            const range = doc.createRange();
+            range.setStart(start.startContainer, start.startOffset);
+            range.setEnd(end.startContainer, end.startOffset);
+            const visibleText = range.toString().replace(/\\s+/g, ' ').trim();
+            if (visibleText) return visibleText;
+          }
+        }
+      } catch (error) {
+        console.warn('No se pudo extraer la página EPUB visible:', error);
+      }
+      return '';
+    }
+    return getCurrentPageTextBase();
+  };
+  window.LEXTORY_READER = window.LEXTORY_READER || {};
+  window.LEXTORY_READER.getCurrentPageText = getCurrentPageText;
+"""
+          if "window.LEXTORY_READER.getCurrentPageText" not in app_js:
+              anchor = "  function safeExternalUrl(value) {"
+              if anchor not in app_js:
+                  raise SystemExit("Could not locate current-page text API hook")
+              app_js = app_js.replace(anchor, page_api + anchor, 1)
           app.write_text(app_js)
           PY
           test -s site/bobby-reading.webp
@@ -95,6 +138,7 @@ jobs:
           grep -q 'privacy.html' site/cloud-sync.js
           grep -q 'delete-account.html' site/cloud-sync.js
           grep -q 'lector-vocabulary-updated-at' site/app.js
+          grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
           grep -q 'lextory-shell-v22' site/sw.js
           grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
