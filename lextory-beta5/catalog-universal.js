@@ -403,45 +403,6 @@
     });
   }
 
-  function normaliseBookKey(value) {
-    return String(value || '')
-      .replace(/\.epub$/i, '')
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  }
-
-  async function findStoredBook(title, fileName) {
-    const db = await openLocalBookDatabase();
-    try {
-      const tx = db.transaction('books', 'readonly');
-      const request = tx.objectStore('books').getAll();
-      const rows = await new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error || new Error('No se pudo consultar la biblioteca.'));
-      });
-      const wantedTitle = normaliseBookKey(title);
-      const wantedFile = normaliseBookKey(fileName);
-      return rows.find(row => {
-        const hasFile = row.blob && Number(row.blob.size || 0) > 0;
-        if (!hasFile) return false;
-        return normaliseBookKey(row.title) === wantedTitle ||
-          normaliseBookKey(row.fileName) === wantedFile;
-      }) || null;
-    } finally {
-      db.close();
-    }
-  }
-
-  async function waitForStoredBook(title, fileName, timeoutMs) {
-    const deadline = Date.now() + (timeoutMs || 20000);
-    while (Date.now() < deadline) {
-      const saved = await findStoredBook(title, fileName);
-      if (saved) return saved;
-      await new Promise(resolve => setTimeout(resolve, 350));
-    }
-    return null;
-  }
-
   async function importGutenberg(book, button) {
     if (button.disabled) return;
     const id = Number(String(book.id).replace('gut-', ''));
