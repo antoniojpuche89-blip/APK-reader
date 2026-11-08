@@ -70,7 +70,6 @@ jobs:
           grep -q 'https://ww3.lectulandia.com/' site/catalog-universal.js
           grep -q 'catalog-import-external' site/catalog-universal.js
           grep -q "lextory-shell-v11" site/sw.js
-          grep -q "lextory-shell-v10" site/sw.js
           node --check site/app.js
           node --check site/catalog-universal.js
           node --check site/dashboard.js
