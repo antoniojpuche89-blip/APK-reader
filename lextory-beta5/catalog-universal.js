@@ -252,7 +252,7 @@
     return rows.some(row => {
       if (!row.blob || !Number(row.blob.size || 0)) return false;
       if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
-      return normaliseBookKey(row.title || row.fileName) === title;
+      return normaliseBookKey(row.title) === title || normaliseBookKey(row.fileName) === title;
     });
   }
 
@@ -262,7 +262,7 @@
     return rows.find(row => {
       if (!row.blob || !Number(row.blob.size || 0)) return false;
       if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
-      return normaliseBookKey(row.title || row.fileName) === normaliseBookKey(book.title);
+      return normaliseBookKey(row.title) === normaliseBookKey(book.title) || normaliseBookKey(row.fileName) === normaliseBookKey(book.title);
     }) || null;
   }
 
