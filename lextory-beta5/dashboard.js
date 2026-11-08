@@ -73,10 +73,10 @@ function init(){
  const cloudPanel=document.createElement('section');cloudPanel.className='dash-panel dash-cloud-panel';cloudPanel.innerHTML='<header><span>☁</span><h3>Tu progreso en todos tus dispositivos</h3><span class="dash-panel-tag" id="dash-sync-tag">LOCAL</span></header><p class="dash-copy">Inicia sesión para sincronizar el avance de tus libros y tu vocabulario. Los archivos siguen guardados en tu dispositivo.</p><button id="dash-sync-open" class="dash-panel-action" type="button">Configurar sincronización <span>→</span></button>';
  const premiumPanel=document.createElement('section');premiumPanel.className='dash-premium-panel';premiumPanel.innerHTML='<div class="dash-premium-badge">LEXTORY PLUS</div><h3>Escucha. Aprende. Avanza.</h3><p>Voces IA naturales, modo audiolibro avanzado y una experiencia sin anuncios.</p><button id="dash-premium-open" type="button">Descubrir Premium <span>→</span></button><small>Próximamente · Las compras se activarán en Android</small>';
  aside.append(cloudPanel,premiumPanel);
- $('dash-sync-open').onclick=()=>document.querySelector('#account-button')?.click();
- $('dash-premium-open').onclick=()=>document.querySelector('#premium-button')?.click();
+ $('dash-sync-open').onclick=()=>window.LEXTORY_CLOUD?.openAccount?.();
+ $('dash-premium-open').onclick=()=>window.LEXTORY_PREMIUM?.open?.();
  const sideBottom=document.querySelector('.sidebar-bottom');
- if(sideBottom){sideBottom.innerHTML='<div class="sidebar-plus-mark">✦</div><strong>Lextory Plus</strong><span>Voces de IA y lectura inmersiva sin anuncios.</span><button id="sidebar-plus-open" type="button">Ver Premium →</button>';sideBottom.querySelector('#sidebar-plus-open').onclick=()=>document.querySelector('#premium-button')?.click();}
+ if(sideBottom){sideBottom.innerHTML='<div class="sidebar-plus-mark">✦</div><strong>Lextory Plus</strong><span>Voces de IA y lectura inmersiva sin anuncios.</span><button id="sidebar-plus-open" type="button">Ver Premium →</button>';sideBottom.querySelector('#sidebar-plus-open').onclick=()=>window.LEXTORY_PREMIUM?.open?.();}
  const obs=new MutationObserver(()=>{layout.classList.toggle('hidden',lib.classList.contains('hidden'));filterBooks();});
  obs.observe(lib,{attributes:true,attributeFilter:['class']});obs.observe($('book-list'),{childList:true,subtree:true});
  const v=$('vocabulary-list');if(v)new MutationObserver(refresh).observe(v,{childList:true,subtree:true,characterData:true});

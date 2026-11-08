@@ -300,7 +300,8 @@
     if (!confirm('¿Eliminar definitivamente tu cuenta y los datos de sincronización en la nube? Los archivos locales no se borrarán.')) return;
     const result = await client.functions.invoke('delete-account', { body: {} });
     if (result.error) return message(result.error.message || 'No se pudo eliminar la cuenta.', true);
-    await client.auth.signOut(); session = null; renderAccount();
+    try { await client.auth.signOut(); } catch (_) {}
+    session = null; renderAccount();
     status('Cuenta eliminada. Los datos locales se mantienen.', 'off');
     message('Cuenta y datos en la nube eliminados.');
   }
