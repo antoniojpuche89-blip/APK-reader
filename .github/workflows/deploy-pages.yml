@@ -23,10 +23,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Enable and configure GitHub Pages
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - name: Reassemble Lector beta archive
         run: |
           cat lector-beta1.part* | base64 --decode > lector-beta1.zip
