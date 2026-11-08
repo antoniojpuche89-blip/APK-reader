@@ -102,53 +102,7 @@ function init(){
  const title=lib.querySelector('.section-heading h2');if(title&&title.firstChild)title.firstChild.textContent='Mi Biblioteca ';
  document.querySelector('.welcome-card')?.classList.add('dash-hide-hero');
  const hero=document.createElement('section');hero.className='dash-hero dash-stats-hero';hero.innerHTML=
-  '<div class="dash-stats-heading"><div class="dash-hero-kicker"><i></i> TU UNIVERSO DE LECTURA</div><div><h2>Tu progreso, <em>en cifras.</em></h2><p>Cada página, cada palabra y cada minuto cuentan. Así avanza tu viaje lector.</p></div><div class="dash-bobby" aria-hidden="true">
-<svg viewBox="0 0 260 210" role="img" aria-label="Bobby, schnauzer blanco leyendo">
-<defs>
- <linearGradient id="bobby-fur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".58" stop-color="#f6f1ff"/><stop offset="1" stop-color="#c9c2df"/></linearGradient>
- <linearGradient id="bobby-book" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a35cf1"/><stop offset="1" stop-color="#4523a2"/></linearGradient>
- <linearGradient id="bobby-pages" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffef7"/><stop offset="1" stop-color="#e9d9c4"/></linearGradient>
- <filter id="bobby-shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
-</defs>
-<circle cx="151" cy="91" r="77" fill="none" stroke="#a77aff" stroke-opacity=".35" stroke-width="1.5"/>
-<circle cx="151" cy="91" r="64" fill="#a879ff" opacity=".07"/>
-<path d="M46 129h58l5 11H41z" fill="#5632a8"/><path d="M40 113h66l5 15H36z" fill="#8850d5"/><path d="M43 101h60v13H43z" fill="#f0c9e8"/>
-<path d="M47 100h57v5H47z" fill="#ad7af1"/><path d="M51 84h53v16H51z" fill="#6b3cbb"/><path d="M54 87h46" stroke="#d6b4ff" stroke-width="2"/>
-<text x="77" y="96" text-anchor="middle" font-size="6" font-weight="900" fill="#fff" letter-spacing="1">LEXTORY</text>
-<ellipse cx="174" cy="153" rx="68" ry="17" fill="#08051b" opacity=".28" filter="url(#bobby-shadow)"/>
-<!-- body and paws -->
-<path d="M109 137c-9-27 1-50 28-57 32-9 66 7 70 39l8 38-99 7z" fill="url(#bobby-fur)"/>
-<path d="M123 149c-10 13-6 26 9 28 15 2 27-7 23-19l-7-12zM183 148c-3 13 5 25 19 23 13-2 18-13 10-23l-10-11z" fill="url(#bobby-fur)"/>
-<!-- ears -->
-<path d="M116 65c-20-7-31-25-24-43 5-13 19-12 33 4l15 22z" fill="url(#bobby-fur)" stroke="#d7d0e6" stroke-width="1.5"/>
-<path d="M187 47c9-22 24-31 37-23 12 8 5 28-12 43l-19 11z" fill="url(#bobby-fur)" stroke="#d7d0e6" stroke-width="1.5"/>
-<!-- head silhouette -->
-<path d="M113 51c8-22 26-32 48-31 29 0 49 16 55 43 6 27-2 52-20 66-12 10-26 16-44 15-24-1-44-12-54-32-11-22-4-45 15-61z" fill="url(#bobby-fur)" stroke="#e0d9ef" stroke-width="1.4"/>
-<!-- eyebrows -->
-<path d="M127 73c7-9 21-10 30-2-5 5-13 8-21 7zM168 70c9-8 23-6 29 3l-10 5c-8-1-14-3-19-8z" fill="#fff"/>
-<!-- eyes -->
-<ellipse cx="141" cy="83" rx="6.2" ry="8" fill="#17142b"/><ellipse cx="184" cy="82" rx="6.2" ry="8" fill="#17142b"/>
-<circle cx="143" cy="80" r="2" fill="#fff"/><circle cx="186" cy="79" r="2" fill="#fff"/>
-<!-- muzzle / beard -->
-<path d="M128 96c-2-11 9-17 21-16 9 1 13 6 16 12 5-7 12-10 22-8 12 2 17 10 13 21-4 12-18 23-34 24-20 1-34-13-38-25z" fill="#fff" stroke="#e4ddeb" stroke-width="1"/>
-<path d="M132 107c8-9 18-11 29-7 8-4 17-2 26 5-5 18-19 29-33 28-12-1-20-12-22-26z" fill="#f8f5fb"/>
-<ellipse cx="166" cy="98" rx="9.5" ry="7.5" fill="#201c2b"/><ellipse cx="163" cy="96" rx="2.5" ry="1.5" fill="#fff" opacity=".65"/>
-<path d="M166 105c-1 6-6 8-11 7M166 105c1 6 7 8 12 6" stroke="#4a4355" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-<!-- collar and tag -->
-<path d="M128 139c15 9 35 12 55 2l5 9c-22 14-47 11-63-1z" fill="#5130a0" stroke="#a982ed" stroke-width="1"/>
-<path d="M155 148l8 2 0 8-8-1z" fill="#e6b34e"/>
-<path d="M149 154c0-5 6-7 12-5 7-2 13 1 13 6 0 5-5 8-12 7-7 2-13-2-13-8z" fill="#f1c65d" stroke="#9d6b27" stroke-width="1"/>
-<text x="161" y="159" font-size="5.5" text-anchor="middle" font-weight="900" fill="#4e3215">Bobby</text>
-<!-- open book -->
-<path d="M78 159c25-10 42-7 69 3v30c-24-10-45-10-69 0z" fill="url(#bobby-pages)" stroke="#cdb9e9" stroke-width="1.2"/>
-<path d="M147 162c25-11 46-13 69-3v33c-24-9-45-9-69 0z" fill="url(#bobby-pages)" stroke="#cdb9e9" stroke-width="1.2"/>
-<path d="M147 162v30" stroke="#b7a0da" stroke-width="1.2"/>
-<path d="M89 167c17-5 32-4 48 2M89 174c18-5 33-3 48 3M158 169c18-7 34-8 48-3M158 177c18-7 34-7 48-2" stroke="#d8c8b6" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-<path d="M76 190c25-11 47-9 71 0v13c-23-10-47-11-70-1zM147 190c23-10 46-11 71-1v13c-24-10-47-9-71 1z" fill="url(#bobby-book)" stroke="#b58bff" stroke-width="1"/>
-<path d="M149 190v13" stroke="#e1c4ff" stroke-width="1"/>
-<path d="M115 191c-9-5-16-4-23 1-4 4-1 10 5 11 8 2 15-1 20-4zM171 191c10-5 17-4 24 1 4 4 1 10-5 11-8 2-15-1-20-4z" fill="url(#bobby-fur)" stroke="#ded7e9" stroke-width=".8"/>
-<path d="M232 37l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM68 53l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#fff" opacity=".88"/>
-</svg></div></div>'+
+  '<div class="dash-stats-heading"><div class="dash-hero-kicker"><i></i> TU UNIVERSO DE LECTURA</div><div><h2>Tu progreso, <em>en cifras.</em></h2><p>Cada página, cada palabra y cada minuto cuentan. Así avanza tu viaje lector.</p></div><img class="dash-bobby-image" src="bobby-reading.webp" alt="Bobby, el schnauzer blanco de Lextory leyendo" /></div>'+
   '<div class="dash-stat-grid">'+
    '<article class="dash-stat-card"><span class="dash-stat-icon books">▣</span><div><strong id="dash-stat-books">0</strong><small>Libros leídos</small></div><span class="dash-stat-sub" id="dash-stat-books-sub">Biblioteca</span></article>'+
    '<article class="dash-stat-card"><span class="dash-stat-icon minutes">◷</span><div><strong id="dash-stat-minutes">0</strong><small>Minutos de lectura</small></div><span class="dash-stat-sub">Tiempo activo</span></article>'+

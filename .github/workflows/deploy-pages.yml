@@ -48,6 +48,7 @@ jobs:
           cp lextory-beta6/supabase-config.js site/supabase-config.js
           cp lextory-beta6/premium-ui.js site/premium-ui.js
           cp lextory-beta6/reader-enhancements.js site/reader-enhancements.js
+          cp lextory-beta6/bobby-reading.webp site/bobby-reading.webp
           cp lextory-beta6/privacy.html site/privacy.html
           cp lextory-beta6/delete-account.html site/delete-account.html
           python3 - <<'PY'
@@ -84,6 +85,9 @@ jobs:
               app_js = app_js.replace(anchor, event_hook + anchor, 1)
           app.write_text(app_js)
           PY
+          test -s site/bobby-reading.webp
+          grep -q 'bobby-reading.webp' site/dashboard.js
+          grep -q 'bobby-reading.webp' site/sw.js
           grep -q 'dashboard.css' site/index.html
           grep -q 'dashboard.js' site/index.html
           grep -q 'catalog-universal.js' site/index.html
