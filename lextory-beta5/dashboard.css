@@ -72,3 +72,93 @@
 @media(max-width:1120px){.dash-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-stats-heading{padding-right:145px}.dash-stats-ornament{right:12px;transform:translateY(-50%) scale(.88) rotate(5deg)}}
 @media(max-width:820px){.dash-stats-hero{padding:18px 17px 13px}.dash-stats-heading{min-height:78px;padding-right:110px}.dash-stats-heading h2{font-size:24px}.dash-stats-heading p{font-size:10px}.dash-stats-ornament{right:5px;transform:translateY(-50%) scale(.73) rotate(5deg)}.dash-stat-card{min-height:80px;padding:11px;gap:9px}.dash-stat-icon{width:35px;height:35px;flex-basis:35px;font-size:19px}.dash-stat-card strong{font-size:20px}}
 @media(max-width:560px){.dash-stats-hero{padding:16px 13px 12px;border-radius:16px}.dash-stats-heading{min-height:88px;padding-right:0;display:block}.dash-stats-heading .dash-hero-kicker{font-size:8px}.dash-stats-heading h2{font-size:23px;margin:0 0 5px}.dash-stats-heading p{max-width:100%;font-size:9px}.dash-stats-ornament{display:none}.dash-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:13px}.dash-stat-card{min-height:76px;padding:9px;gap:7px}.dash-stat-icon{width:31px;height:31px;flex-basis:31px;font-size:17px}.dash-stat-icon.words{font-size:15px}.dash-stat-card strong{font-size:19px}.dash-stat-card small{font-size:8px}.dash-stat-sub{display:none}.dash-stats-note{font-size:7px;margin-top:8px}}
+
+
+/* Complete Lextory day theme: override dashboard surfaces as well as the sidebar. */
+body:not(.dark) .app-shell{background:radial-gradient(ellipse at 76% 0,rgba(214,205,255,.5),transparent 39%),linear-gradient(145deg,#f8f7fc 0%,#f1f0fa 55%,#edf4fb 100%);color:#302949}
+body:not(.dark) .app-main{color:#302949}
+body:not(.dark) .app-header{border-bottom:1px solid #e5e0f1}
+body:not(.dark) .header-heading h1{color:#302949}
+body:not(.dark) .header-heading p{color:#77718d}
+body:not(.dark) .header-stat{background:linear-gradient(120deg,#fff,#f3efff);color:#66558f;border-color:#e3dcf4}
+body:not(.dark) .header-stat strong{color:#30294c}
+body:not(.dark) .header-account-button{background:#fff;color:#4e426d;border-color:#e1daf2}
+body:not(.dark) .header-premium-button{background:#fff8e9;color:#80572b;border-color:#ead5ad}
+body:not(.dark) .dash-stats-hero{background:radial-gradient(ellipse at 88% 8%,rgba(180,151,255,.22),transparent 36%),linear-gradient(112deg,#f4efff 0%,#eeecff 56%,#eaf5fb 100%);border-color:#dcd2f5;box-shadow:0 13px 34px rgba(65,48,115,.08)}
+body:not(.dark) .dash-stats-heading .dash-hero-kicker{color:#7053b2}
+body:not(.dark) .dash-stats-heading h2{color:#30264e}
+body:not(.dark) .dash-stats-heading p{color:#716a88}
+body:not(.dark) .dash-stat-card{background:linear-gradient(145deg,#fff,#f8f6ff);border-color:#e1daf1;box-shadow:0 7px 18px rgba(74,57,120,.07)}
+body:not(.dark) .dash-stat-card strong{color:#30264e}
+body:not(.dark) .dash-stat-card small{color:#6d6684}
+body:not(.dark) .dash-stat-sub{background:#f1edff;color:#7055ac;border-color:#ded5f5}
+body:not(.dark) .dash-stats-note{color:#77718e}
+body:not(.dark) .dash-stat-icon{background:#eee6ff;color:#8854d6;box-shadow:inset 0 0 0 1px #e1d5fb}
+body:not(.dark) .dash-stat-icon.minutes{background:#e9edff;color:#596acb}
+body:not(.dark) .dash-stat-icon.streak{background:#fff0e2;color:#c97630}
+body:not(.dark) .dash-stat-icon.words{background:#e3f7f4;color:#248f88}
+body:not(.dark) .dash-search{background:#fff;color:#7355b4;border-color:#ded7ee;box-shadow:0 3px 11px rgba(52,39,85,.04)}
+body:not(.dark) .dash-search input{color:#302949}
+body:not(.dark) .dash-search input::placeholder{color:#9992ac}
+body:not(.dark) .dash-grid-button{background:#fff;color:#6d55a9;border-color:#ded7ee}
+body:not(.dark) .dash-filter{background:#fff;color:#625879;border-color:#e0d9ef}
+body:not(.dark) .dash-filter.active{background:linear-gradient(110deg,#8d45e8,#6232c7);color:#fff;border-color:transparent}
+body:not(.dark) .book-card,body:not(.dark) .featured-book-card{background:linear-gradient(155deg,#fff,#f8f7fd);border-color:#e1dcef;box-shadow:0 6px 18px rgba(49,38,83,.06)}
+body:not(.dark) .book-detail h3,body:not(.dark) .featured-book-card strong{color:#302849}
+body:not(.dark) .book-meta,body:not(.dark) .featured-book-card small{color:#79738d}
+body:not(.dark) .dash-status.pending{background:#f0edf8;color:#655b7e;border:1px solid #e2dcf0}
+body:not(.dark) .dash-panel{background:linear-gradient(155deg,#fff,#f8f7fd);border-color:#e2dcef;box-shadow:0 8px 20px rgba(49,38,83,.06)}
+body:not(.dark) .dash-panel h3{color:#302849}
+body:not(.dark) .dash-panel header>span{color:#8659cb}
+body:not(.dark) .dash-panel header button{color:#654a9c}
+body:not(.dark) .dash-copy{color:#77718e}
+body:not(.dark) .dash-metrics>div{background:#f0eaff;border-color:#ded3f5}
+body:not(.dark) .dash-metrics b{color:#8452ca}
+body:not(.dark) .dash-metrics small{color:#625879}
+body:not(.dark) .dash-metrics .review{background:#fff5df;border-color:#f0dfb7}
+body:not(.dark) .dash-metrics .review b{color:#bb832a}
+body:not(.dark) .dash-metrics .known{background:#e6f7f0;border-color:#c6eadb}
+body:not(.dark) .dash-metrics .known b{color:#229b70}
+body:not(.dark) .dash-week-title{color:#716987}
+body:not(.dark) .dash-week-title b{color:#258d70}
+body:not(.dark) .dash-week-days{color:#88819c}
+body:not(.dark) .dash-week{border-bottom-color:#e5deef}
+body:not(.dark) .dash-chart-empty{color:#948da5}
+body:not(.dark) .dash-goal{background:#f3efff;border-color:#e0d7f4}
+body:not(.dark) .dash-goal>span{color:#8653ca}
+body:not(.dark) .dash-goal b{color:#352a50}
+body:not(.dark) .dash-goal small{color:#7a7190}
+body:not(.dark) .dash-cloud-panel{background:linear-gradient(145deg,#f0f7ff,#f6f1ff)}
+body:not(.dark) .dash-panel-action{background:#eee8ff;color:#68489f;border-color:#ded3f5}
+body:not(.dark) .dash-premium-panel{background:radial-gradient(circle at 100% 0,rgba(255,210,145,.32),transparent 42%),linear-gradient(145deg,#fff8e9,#f4efff);border-color:#ead9b7;box-shadow:0 8px 20px rgba(68,51,91,.07)}
+body:not(.dark) .dash-premium-panel h3{color:#3c2c4a}
+body:not(.dark) .dash-premium-panel p{color:#766983}
+body:not(.dark) .dash-premium-panel small{color:#887b90}
+body:not(.dark) .account-card{background:linear-gradient(145deg,#fff,#f5f1ff);border-color:#e2d9f1;color:#302849}
+body:not(.dark) .account-card h2{color:#302849}
+body:not(.dark) .account-intro{color:#706985}
+body:not(.dark) .account-config-warning{background:#fff8e9;border-color:#efdfbe}
+body:not(.dark) .account-config-warning strong{color:#805c2d}
+body:not(.dark) .account-config-warning span{color:#887655}
+body:not(.dark) .account-mode{background:#eeeaf7}
+body:not(.dark) .account-mode button{color:#6f6782}
+body:not(.dark) .account-card form label{color:#5b506e}
+body:not(.dark) .account-card form input{background:#fff;color:#302849;border-color:#ded6ec}
+body:not(.dark) .account-user-row{border-color:#e2d9f1}
+body:not(.dark) .account-user-row strong{color:#302849}
+body:not(.dark) .account-user-row small,body:not(.dark) .account-legal{color:#817994}
+body:not(.dark) .account-sync-box{background:#eaf7f1;border-color:#cfeadd}
+body:not(.dark) .account-sync-box strong{color:#276d54}
+body:not(.dark) .account-sync-box small{color:#658577}
+body:not(.dark) .account-secondary{background:#f1edfa;color:#604d83;border-color:#ded6ed}
+body:not(.dark) .account-text-button{color:#7150b5}
+body:not(.dark) .account-close,body:not(.dark) .premium-close{background:#eeeaf6;color:#554a68}
+body:not(.dark) .premium-modal-card{background:radial-gradient(circle at 100% 0,rgba(255,213,154,.25),transparent 36%),linear-gradient(145deg,#fff,#f3effa);border-color:#e7d9bb;color:#33274a}
+body:not(.dark) .premium-modal-card h2{color:#33274a}
+body:not(.dark) .premium-lead{color:#756b86}
+body:not(.dark) .premium-benefits article{background:#faf8ff;border-color:#e7def5}
+body:not(.dark) .premium-benefits strong{color:#382d50}
+body:not(.dark) .premium-benefits small{color:#7a718c}
+body:not(.dark) .premium-benefits article>span{background:#efe8ff;color:#8655ce}
+body:not(.dark) .premium-secondary{background:#f0ebfa;color:#624c85;border-color:#e0d8ed}
+@media(max-width:820px){body:not(.dark) .app-sidebar{background:rgba(250,249,255,.96);border-top-color:#e2dcef;box-shadow:0 -7px 24px rgba(46,34,82,.08)}body:not(.dark) .sidebar-link{color:#5b4d76}body:not(.dark) .sidebar-link .nav-icon{color:#7958b6}}
