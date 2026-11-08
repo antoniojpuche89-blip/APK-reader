@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f7fb">
+  <meta name="description" content="Lee EPUB y PDF, escucha la pronunciación, traduce palabras y crea tu vocabulario.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>.brand-mark{width:48px;height:48px;flex:0 0 48px;object-fit:cover;border-radius:14px;box-shadow:0 7px 16px rgba(98,87,217,.23)}</style>
+  <link rel="stylesheet" href="styles.css">
+  <title>Lextory — Lee, traduce y aprende</title>
+</head>
+<body>
+  <div class="app-shell" id="library-screen">
+    <header class="app-header">
+      <div class="brand">
+        <img class="brand-mark" src="icon-192.png" alt="Lextory">
+        <div><div class="eyebrow">LEXTORY · TU ESPACIO DE LECTURA</div><h1>Mi biblioteca</h1></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" id="library-theme-button" type="button" aria-label="Activar modo oscuro" title="Activar modo oscuro">☾</button>
+        <button class="icon-button" id="install-button" type="button" aria-label="Instalar aplicación" title="Instalar aplicación">⇩</button>
+      </div>
+    </header>
+
+    <main class="library-main">
+      <section class="welcome-card">
+        <div class="welcome-copy">
+          <span class="welcome-tag">LEE · TRADUCE · ESCUCHA · APRENDE</span>
+          <h2>Un libro cada día.<br><em>Un poco más de inglés.</em></h2>
+          <p>Tus libros y tu progreso, siempre a mano.</p>
+          <button class="primary-button" id="add-book-button" type="button"><span>＋</span> Añadir un libro</button>
+          <input id="file-input" type="file" accept=".epub,.pdf,application/pdf,application/epub+zip" hidden>
+        </div>
+        <div class="book-illustration" aria-hidden="true"><div class="book-shadow"></div><div class="book-cover"><span>READ</span><i></i><small>YOUR NEXT<br>CHAPTER</small></div><div class="spark spark-one">✦</div><div class="spark spark-two">✧</div></div>
+      </section>
+
+      <nav class="main-tabs" aria-label="Secciones de biblioteca">
+        <button class="main-tab active" id="library-tab" type="button">Mi biblioteca</button>
+        <button class="main-tab" id="catalog-tab" type="button">Libros gratis <span class="tab-dot">✦</span></button>
+        <button class="main-tab" id="vocab-tab" type="button">Vocabulario <span class="vocab-count" id="vocab-count">0</span></button>
+      </nav>
+      <section class="library-section" id="my-library-section">
+        <div class="section-heading"><div><div class="eyebrow">TU COLECCIÓN</div><h2>Mis libros <span id="book-count">0</span></h2></div><button class="text-button" id="sort-button" type="button">Más recientes ↓</button></div>
+        <div id="book-list" class="book-list">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">▤</div>
+            <h3>Tu biblioteca está esperando</h3>
+            <p>Añade un libro en formato EPUB o PDF para empezar a leer.</p>
+          </div>
+        </div>
+      </section>
+      <section class="catalog-section hidden" id="catalog-section">
+        <div class="section-heading catalog-heading"><div><div class="eyebrow">DESCUBRE TU PRÓXIMA LECTURA</div><h2>Libros gratuitos</h2></div><button class="catalog-import-button" id="catalog-import-button" type="button">＋ Importar</button></div>
+        <p class="catalog-intro">Explora obras clásicas y descarga los EPUB a tu biblioteca con un toque.</p>
+        <div class="catalog-search-row">
+          <label class="catalog-search"><span aria-hidden="true">⌕</span><input id="catalog-search" type="search" placeholder="Buscar título o autor…" autocomplete="off"><button id="clear-catalog-search" type="button" aria-label="Limpiar búsqueda">×</button></label>
+          <select id="catalog-language" class="catalog-language" aria-label="Idioma del libro"><option value="en">Inglés</option><option value="es">Español</option><option value="fr">Francés</option><option value="de">Alemán</option><option value="it">Italiano</option><option value="pt">Portugués</option><option value="">Todos</option></select>
+        </div>
+        <div class="catalog-meta"><span id="catalog-result-count">Más populares</span><span>Ordenados por popularidad</span></div>
+        <div class="catalog-grid" id="catalog-results"><div class="catalog-loading"><div class="spinner"></div><span>Cargando catálogo…</span></div></div>
+        <div class="catalog-more-wrap"><button id="catalog-more" class="secondary-button hidden" type="button">Cargar más libros</button></div>
+        <aside class="catalog-legal"><strong>Sobre los libros y sus derechos</strong><p>Los títulos se descubren en Project Gutenberg. Cuando hay EPUB, Lextory intenta incorporarlo directamente a tu biblioteca desde un espejo de descarga; si el navegador bloquea la importación automática, se abre la descarga para que puedas importarla manualmente. El estado de copyright del catálogo corresponde a EE. UU. y no garantiza que la obra sea de dominio público en tu país.</p><a href="https://www.gutenberg.org/policy/terms_of_use" target="_blank" rel="noopener">Condiciones de Project Gutenberg</a></aside>
+      </section>
+      <section class="vocabulary-section hidden" id="vocabulary-section">
+        <div class="section-heading"><div><div class="eyebrow">TUS NUEVAS PALABRAS</div><h2>Mi vocabulario <span id="vocabulary-total">0</span></h2></div><button class="text-button" id="clear-vocabulary" type="button">Vaciar lista</button></div>
+        <p class="catalog-intro">Aquí aparecerán las palabras que guardes mientras lees. Se conservan en este dispositivo.</p>
+        <div id="vocabulary-list" class="vocabulary-list"><div class="empty-state"><div class="empty-icon">Aa</div><h3>Tu vocabulario empieza aquí</h3><p>Traduce una palabra y pulsa «Guardar en vocabulario» para recordarla.</p></div></div>
+      </section>
+      <p class="privacy-note"><span>⌑</span> Tus libros, progreso y vocabulario se guardan en este dispositivo. No se suben a ningún servidor.</p>
+    </main>
+  </div>
+
+  <section class="reader-screen hidden" id="reader-screen">
+    <header class="reader-header">
+      <button class="back-button" id="back-button" type="button" aria-label="Volver a la biblioteca">←</button>
+      <div class="reader-book-info"><div class="eyebrow" id="reader-format">LEYENDO</div><div class="reader-book-title" id="reader-title">Libro</div></div>
+      <button class="icon-button reader-theme-button" id="theme-button" type="button" aria-label="Cambiar tema" title="Cambiar tema">◐</button>
+    </header>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="reader-toolbar">
+      <div class="reading-status" id="reading-status">Preparando libro…</div>
+      <div class="toolbar-actions">
+        <button class="small-tool" id="language-button" type="button" title="Idiomas de traducción">EN → ES</button>
+        <button class="small-tool speech-toggle" id="read-page-button" type="button" title="Leer esta página en voz alta">🔊 Leer</button>
+        <select class="small-tool speech-speed" id="speech-speed" aria-label="Velocidad de lectura" title="Velocidad de lectura"><option value="0.75">0,75×</option><option value="1" selected>1×</option><option value="1.25">1,25×</option><option value="1.5">1,5×</option></select>
+        <button class="small-tool" id="font-minus" type="button" title="Reducir tamaño de letra">A−</button>
+        <button class="small-tool" id="font-plus" type="button" title="Aumentar tamaño de letra">A+</button>
+        <button class="small-tool immersive-toggle" id="immersive-button" type="button" aria-pressed="false" title="Activar modo lectura a pantalla completa">⛶ <span>Modo lectura</span></button>
+      </div>
+    </div>
+    <main class="reading-area" id="reading-area">
+      <div id="epub-viewer" class="epub-viewer hidden"></div>
+      <div id="pdf-viewer" class="pdf-viewer hidden">
+        <div class="pdf-page-wrap" id="pdf-page-wrap">
+          <canvas id="pdf-canvas"></canvas>
+          <div id="pdf-text-layer" class="textLayer"></div>
+        </div>
+      </div>
+      <div id="reader-loading" class="reader-loading"><div class="spinner"></div><p>Abriendo tu libro…</p></div>
+      <button class="page-turn-zone page-turn-left" id="tap-previous" type="button" aria-label="Página anterior"></button>
+      <button class="page-turn-zone page-turn-right" id="tap-next" type="button" aria-label="Página siguiente"></button>
+    </main>
+    <footer class="reader-footer">
+      <button class="page-button" id="previous-button" type="button">‹ <span>Anterior</span></button>
+      <div class="page-indicator" id="page-indicator">—</div>
+      <button class="page-button" id="next-button" type="button"><span>Siguiente</span> ›</button>
+    </footer>
+    <div class="immersive-hud" id="immersive-hud" aria-label="Controles del modo lectura">
+      <button class="immersive-exit" id="immersive-exit" type="button" aria-label="Salir del modo lectura">× <span>Salir</span></button>
+      <div class="immersive-bottom-tools">
+        <button id="immersive-font-minus" type="button" aria-label="Reducir tamaño de letra">A−</button>
+        <button id="immersive-previous" type="button" aria-label="Página anterior">‹</button>
+        <span id="immersive-page-indicator">—</span>
+        <button id="immersive-next" type="button" aria-label="Página siguiente">›</button>
+        <button id="immersive-font-plus" type="button" aria-label="Aumentar tamaño de letra">A+</button>
+      </div>
+    </div>
+    <div class="selection-bar hidden" id="selection-bar"><div class="selection-text" id="selection-preview">Texto seleccionado</div><button class="primary-button compact" id="translate-selection" type="button">Traducir ✦</button><button class="clear-selection" id="clear-selection" type="button" aria-label="Cerrar">×</button></div>
+  </section>
+
+  <div class="modal-backdrop hidden" id="translation-modal" role="dialog" aria-modal="true" aria-labelledby="translation-heading">
+    <div class="translation-card">
+      <div class="modal-topline"><span class="welcome-tag">TU AYUDA DE LECTURA</span><button class="modal-close" id="close-translation" type="button" aria-label="Cerrar">×</button></div>
+      <h2 id="translation-heading">Traducción</h2>
+      <div class="language-pair"><span id="source-language-label">Inglés</span><span>→</span><span id="target-language-label">Español</span></div>
+      <div class="original-text" id="original-text"></div>
+      <div class="translation-result" id="translation-result"><div class="spinner small"></div><span>Buscando traducción…</span></div>
+      <div class="translation-actions"><button class="secondary-button" id="speak-word" type="button">🔊 Escuchar</button><button class="secondary-button" id="copy-translation" type="button">Copiar</button><button class="primary-button compact hidden" id="save-vocabulary" type="button">＋ Guardar en vocabulario</button><button class="primary-button compact" id="google-translate" type="button">Abrir Traductor</button></div>
+      <p class="translation-usage" id="translation-usage"></p>
+      <p class="translation-footnote">La traducción necesita Internet. El texto seleccionado se envía al servicio MyMemory; evita enviar información sensible. La cuota gratuita se mide por caracteres, no por número de palabras.</p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="language-modal" role="dialog" aria-modal="true" aria-labelledby="language-heading">
+    <div class="translation-card settings-card">
+      <div class="modal-topline"><span class="welcome-tag">CONFIGURACIÓN</span><button class="modal-close" id="close-language" type="button" aria-label="Cerrar">×</button></div>
+      <h2 id="language-heading">Idiomas de traducción</h2>
+      <label class="field-label" for="source-language">Traducir desde</label>
+      <select id="source-language" class="language-select"><option value="en">Inglés</option><option value="es">Español</option><option value="fr">Francés</option><option value="de">Alemán</option><option value="it">Italiano</option><option value="pt">Portugués</option></select>
+      <label class="field-label" for="target-language">Traducir a</label>
+      <select id="target-language" class="language-select"><option value="es">Español</option><option value="en">Inglés</option><option value="fr">Francés</option><option value="de">Alemán</option><option value="it">Italiano</option><option value="pt">Portugués</option></select>
+      <button class="primary-button save-languages" id="save-languages" type="button">Guardar idiomas</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

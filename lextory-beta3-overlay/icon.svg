@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lextory">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10102f"/><stop offset="1" stop-color="#071a3c"/></linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b77aff"/><stop offset=".55" stop-color="#7547ef"/><stop offset="1" stop-color="#3a3bc7"/></linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#72e7ff"/><stop offset="1" stop-color="#2478ff"/></linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff9e9"/><stop offset="1" stop-color="#e6d9ff"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe6a1"/><stop offset="1" stop-color="#e99b42"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="9" y="9" width="494" height="494" rx="106" fill="url(#bg)" stroke="#8457ff" stroke-width="5"/>
+  <rect x="17" y="17" width="478" height="478" rx="99" fill="none" stroke="#37bfff" stroke-opacity=".34" stroke-width="2"/>
+  <path d="M82 278v-64a174 174 0 0 1 348 0v64" fill="none" stroke="url(#violet)" stroke-width="27" stroke-linecap="round" filter="url(#glow)"/>
+  <rect x="43" y="239" width="72" height="148" rx="34" fill="url(#violet)" stroke="#d8b7ff" stroke-width="5"/>
+  <rect x="397" y="239" width="72" height="148" rx="34" fill="url(#violet)" stroke="#d8b7ff" stroke-width="5"/>
+  <rect x="58" y="259" width="19" height="105" rx="9" fill="#daf6ff" opacity=".42"/>
+  <rect x="435" y="259" width="19" height="105" rx="9" fill="#daf6ff" opacity=".42"/>
+  <g stroke="url(#cyan)" stroke-width="13" stroke-linecap="round" filter="url(#glow)"><path d="M215 120v18M256 98v40M297 120v18M338 133v12"/></g>
+  <path d="M121 174q0-29 30-29h94q31 0 31 29v50q0 29-31 29h-37l-26 28v-28h-31q-30 0-30-29z" fill="url(#cyan)" stroke="#a3efff" stroke-width="4"/>
+  <path d="M237 214q0-27 28-27h93q29 0 29 27v50q0 27-29 27h-25l-22 27v-27h-46q-28 0-28-27z" fill="url(#violet)" stroke="#e0c8ff" stroke-width="4"/>
+  <text x="198" y="222" fill="#fff" font-family="Arial,sans-serif" font-size="62" font-weight="700" text-anchor="middle">A</text>
+  <text x="319" y="264" fill="#fff" font-family="Arial,sans-serif" font-size="58" font-weight="700" text-anchor="middle">文</text>
+  <path d="M64 320q87-42 192 19v125q-95-59-192-18z" fill="url(#paper)" stroke="#bca6ff" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M448 320q-87-42-192 19v125q95-59 192-18z" fill="url(#paper)" stroke="#bca6ff" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M256 339v125" stroke="#8e74db" stroke-width="5"/>
+  <g stroke="#b6a5db" stroke-width="5" stroke-linecap="round" opacity=".85"><path d="M91 344q72-24 137 9M91 370q72-24 137 9M91 396q72-24 137 9M420 344q-72-24-137 9M420 370q-72-24-137 9M420 396q-72-24-137 9"/></g>
+  <path d="M347 437v49l-21-14-20 14v-60" fill="url(#gold)" stroke="#c98034" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M66 447q97-45 190 17M446 447q-97-45-190 17" fill="none" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+</svg>
