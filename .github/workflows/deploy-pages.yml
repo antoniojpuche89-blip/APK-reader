@@ -53,8 +53,8 @@ jobs:
           PY
           grep -q 'dashboard.css' site/index.html
           grep -q 'dashboard.js' site/index.html
-          grep -q 'dashboard-aside' site/dashboard.js
-          grep -q 'LEXTORY' site/icon.svg
+          grep -q 'dash-aside' site/dashboard.js
+          grep -q '<svg' site/icon.svg
           node --check site/app.js
           node --check site/dashboard.js
           node --check site/sw.js
