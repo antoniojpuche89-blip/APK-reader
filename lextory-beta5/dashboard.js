@@ -24,7 +24,7 @@ function refresh(){
  $('dash-total').textContent=words.length;$('dash-review').textContent=words.length-known;$('dash-known').textContent=known;
  if($('vocab-count'))$('vocab-count').textContent=words.length;
  if($('header-vocab-count'))$('header-vocab-count').textContent=words.length;
- if(index>=due().length)index=0;updateCard();updateWeek();
+ if(index>=due().length)index=0;updateCard();updateWeek();if($('dash-stat-words'))$('dash-stat-words').textContent=words.length.toLocaleString('es-IE');
 }
 function filterBooks(){
  const list=$('book-list');if(!list)return;
@@ -38,6 +38,61 @@ function filterBooks(){
  });
  const count=$('book-count');if(count)count.textContent=list.querySelectorAll('.book-card').length;
 }
+function initReadingStats(){
+ const ACTIVITY_KEY='lextory-reading-activity-v1',DB_NAME='lector-biblioteca-v1',IDLE_MS=75000;
+ let data={totalSeconds:0,days:{}},lastTick=Date.now(),lastActivity=lastTick,readerOpen=false;
+ try{const saved=JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}');data={totalSeconds:Math.max(0,Number(saved.totalSeconds)||0),days:saved.days&&typeof saved.days==='object'?saved.days:{}};}catch(_){}
+ const dayKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ const isOpen=()=>{const r=$('reader-screen');return Boolean(r&&!r.classList.contains('hidden'));};
+ function streak(){
+  let d=new Date(),cursor=new Date(d.getFullYear(),d.getMonth(),d.getDate()),count=0;
+  if((Number(data.days[dayKey(cursor)])||0)<60)cursor.setDate(cursor.getDate()-1);
+  while((Number(data.days[dayKey(cursor)])||0)>=60&&count<3650){count++;cursor.setDate(cursor.getDate()-1);}
+  return count;
+ }
+ function renderTime(){
+  if($('dash-stat-minutes'))$('dash-stat-minutes').textContent=Math.floor(data.totalSeconds/60).toLocaleString('es-IE');
+  const s=streak();if($('dash-stat-streak'))$('dash-stat-streak').textContent=s+(s===1?' día':' días');
+ }
+ async function renderBooks(){
+  try{
+   const req=indexedDB.open(DB_NAME,1);
+   const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error('Biblioteca ocupada'));});
+   if(!db.objectStoreNames.contains('books')){db.close();return;}
+   const tx=db.transaction('books','readonly'),get=tx.objectStore('books').getAll();
+   const rows=await new Promise((resolve,reject)=>{get.onsuccess=()=>resolve(get.result||[]);get.onerror=()=>reject(get.error);});
+   db.close();
+   const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
+   const activeBooks=rows.filter(b=>Number(b.progress||0)>0&&Number(b.progress||0)<100).length;
+   if($('dash-stat-books'))$('dash-stat-books').textContent=completed.toLocaleString('es-IE');
+   if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent=rows.length+' en biblioteca';
+   if($('dash-stats-note'))$('dash-stats-note').textContent=activeBooks+' '+(activeBooks===1?'libro en lectura':'libros en lectura')+' · Tiempo y racha registrados en este dispositivo desde esta actualización.';
+  }catch(error){console.warn('Lextory stats:',error);if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent='No disponible';}
+ }
+ function tick(force){
+  const now=Date.now(),active=(force?readerOpen:isOpen())&&!document.hidden;
+  if(active){
+   const start=Math.max(lastTick,lastActivity),end=Math.min(now,lastActivity+IDLE_MS),elapsed=Math.max(0,end-start);
+   if(elapsed>=1000){const seconds=elapsed/1000;data.totalSeconds+=seconds;const key=dayKey(new Date());data.days[key]=(Number(data.days[key])||0)+seconds;try{localStorage.setItem(ACTIVITY_KEY,JSON.stringify(data));}catch(_){}renderTime();}
+  }
+  lastTick=now;
+ }
+ function markActivity(){if(readerOpen&&!document.hidden){tick();lastActivity=Date.now();}}
+ const reader=$('reader-screen');readerOpen=isOpen();
+ if(reader)new MutationObserver(()=>{const open=isOpen();if(readerOpen&&!open)tick(true);if(!readerOpen&&open){lastActivity=Date.now();lastTick=lastActivity;}readerOpen=open;}).observe(reader,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});
+ document.addEventListener('pointerdown',markActivity,{passive:true,capture:true});
+ document.addEventListener('keydown',markActivity,true);
+ document.addEventListener('touchstart',markActivity,{passive:true,capture:true});
+ document.addEventListener('wheel',markActivity,{passive:true,capture:true});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)tick(true);lastTick=Date.now();if(!document.hidden&&isOpen())lastActivity=lastTick;readerOpen=isOpen();});
+ document.addEventListener('click',e=>{if(e.target.closest('#back-button'))tick(true);},true);
+ window.addEventListener('beforeunload',()=>tick(true));
+ setInterval(()=>{tick();},15000);
+ const list=$('book-list');if(list)new MutationObserver(renderBooks).observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+ window.addEventListener('storage',e=>{if(e.key===ACTIVITY_KEY){try{data=JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}');}catch(_){}renderTime();}});
+ window.addEventListener('lextory:cloud-vocabulary-restored',()=>{if($('dash-stat-words'))$('dash-stat-words').textContent=getWords().length.toLocaleString('es-IE');});
+ renderBooks();renderTime();setInterval(renderBooks,45000);
+}
 function init(){
  const lib=$('my-library-section'),main=document.querySelector('.library-main');if(!lib||!main)return;
  document.title='LEXTORY — Lee, traduce y aprende';
@@ -46,10 +101,15 @@ function init(){
  if($('page-subheading'))$('page-subheading').textContent='Hoy es un buen día para leer algo nuevo.';
  const title=lib.querySelector('.section-heading h2');if(title&&title.firstChild)title.firstChild.textContent='Mi Biblioteca ';
  document.querySelector('.welcome-card')?.classList.add('dash-hide-hero');
- const hero=document.createElement('section');hero.className='dash-hero';hero.innerHTML='<div class="dash-hero-copy"><span class="dash-hero-kicker"><i></i> TU UNIVERSO DE LECTURA</span><h2>Cada página te acerca<br><em>a tu siguiente nivel.</em></h2><p>Lee sin interrupciones, escucha capítulos y convierte cada libro en una oportunidad para aprender.</p><div class="dash-hero-actions"><button id="dash-hero-add" class="dash-hero-primary" type="button">＋ Añadir un libro</button><button id="dash-hero-catalog" class="dash-hero-secondary" type="button">Explorar clásicos <span>→</span></button></div><div class="dash-hero-proof"><span>▣ EPUB & PDF</span><span>✦ Traducción instantánea</span><span>◖ Audio y vocabulario</span></div></div><div class="dash-hero-art" aria-hidden="true"><div class="dash-hero-orbit orbit-one"></div><div class="dash-hero-orbit orbit-two"></div><div class="dash-hero-book-back"></div><div class="dash-hero-book"><span>LEXTORY</span><b>READ<br>YOUR<br>WORLD</b><i>✦</i><small>LEARN THROUGH STORIES</small></div><div class="dash-hero-float float-left">Aa <small>VOCABULARY</small></div><div class="dash-hero-float float-right">◖)) <small>AUDIO</small></div></div>';
+ const hero=document.createElement('section');hero.className='dash-hero dash-stats-hero';hero.innerHTML=
+  '<div class="dash-stats-heading"><div class="dash-hero-kicker"><i></i> TU UNIVERSO DE LECTURA</div><div><h2>Tu progreso, <em>en cifras.</em></h2><p>Cada página, cada palabra y cada minuto cuentan. Así avanza tu viaje lector.</p></div><div class="dash-stats-ornament" aria-hidden="true"><span>LEXTORY</span><b>READ<br>YOUR<br>WORLD</b><i>✦</i></div></div>'+
+  '<div class="dash-stat-grid">'+
+   '<article class="dash-stat-card"><span class="dash-stat-icon books">▣</span><div><strong id="dash-stat-books">0</strong><small>Libros leídos</small></div><span class="dash-stat-sub" id="dash-stat-books-sub">Biblioteca</span></article>'+
+   '<article class="dash-stat-card"><span class="dash-stat-icon minutes">◷</span><div><strong id="dash-stat-minutes">0</strong><small>Minutos de lectura</small></div><span class="dash-stat-sub">Tiempo activo</span></article>'+
+   '<article class="dash-stat-card"><span class="dash-stat-icon streak">♨</span><div><strong id="dash-stat-streak">0 días</strong><small>Racha actual</small></div><span class="dash-stat-sub">Días consecutivos</span></article>'+
+   '<article class="dash-stat-card"><span class="dash-stat-icon words">Aa</span><div><strong id="dash-stat-words">0</strong><small>Palabras guardadas</small></div><span class="dash-stat-sub">Tu vocabulario</span></article>'+
+  '</div><div class="dash-stats-note" id="dash-stats-note">El tiempo y la racha empiezan a contarse desde esta actualización.</div>';
  main.insertBefore(hero,main.firstChild);
- hero.querySelector('#dash-hero-add').onclick=()=>add?.click();
- hero.querySelector('#dash-hero-catalog').onclick=()=>catalog?.click();
  const layout=document.createElement('div');layout.className='dash-layout';layout.id='dash-layout';
  const centre=document.createElement('div');centre.className='dash-centre';
  const aside=document.createElement('aside');aside.className='dash-aside';aside.id='dash-aside';
@@ -82,7 +142,7 @@ function init(){
  const v=$('vocabulary-list');if(v)new MutationObserver(refresh).observe(v,{childList:true,subtree:true,characterData:true});
  document.addEventListener('click',e=>{if(e.target.closest('#save-vocabulary,#clear-vocabulary'))setTimeout(refresh,180);},true);
  window.addEventListener('storage',e=>{if(e.key===KEY)refresh();});
- refresh();filterBooks();
+ refresh();filterBooks();initReadingStats();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
