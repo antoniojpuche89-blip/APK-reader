@@ -1,5 +1,5 @@
-const CACHE_NAME='lextory-shell-v12';
-const CORE_FILES=['./','./index.html','./styles.css','./dashboard.css','./app.js','./dashboard.js','./catalog-universal.js','./manifest.webmanifest','./icon.svg'];
+const CACHE_NAME='lextory-shell-v13';
+const CORE_FILES=['./','./index.html','./styles.css','./dashboard.css','./app.js','./dashboard.js','./catalog-universal.js','./cloud-sync.js','./supabase-config.js','./premium-ui.js','./reader-enhancements.js','./privacy.html','./delete-account.html','./manifest.webmanifest','./icon.svg'];
 const IMAGE_HOSTS=['gutenberg.org','gutendex.com'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(CORE_FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('lextory-shell-')&&k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

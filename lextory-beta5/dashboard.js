@@ -46,6 +46,10 @@ function init(){
  if($('page-subheading'))$('page-subheading').textContent='Hoy es un buen día para leer algo nuevo.';
  const title=lib.querySelector('.section-heading h2');if(title&&title.firstChild)title.firstChild.textContent='Mi Biblioteca ';
  document.querySelector('.welcome-card')?.classList.add('dash-hide-hero');
+ const hero=document.createElement('section');hero.className='dash-hero';hero.innerHTML='<div class="dash-hero-copy"><span class="dash-hero-kicker"><i></i> TU UNIVERSO DE LECTURA</span><h2>Cada página te acerca<br><em>a tu siguiente nivel.</em></h2><p>Lee sin interrupciones, escucha capítulos y convierte cada libro en una oportunidad para aprender.</p><div class="dash-hero-actions"><button id="dash-hero-add" class="dash-hero-primary" type="button">＋ Añadir un libro</button><button id="dash-hero-catalog" class="dash-hero-secondary" type="button">Explorar clásicos <span>→</span></button></div><div class="dash-hero-proof"><span>▣ EPUB & PDF</span><span>✦ Traducción instantánea</span><span>◖ Audio y vocabulario</span></div></div><div class="dash-hero-art" aria-hidden="true"><div class="dash-hero-orbit orbit-one"></div><div class="dash-hero-orbit orbit-two"></div><div class="dash-hero-book-back"></div><div class="dash-hero-book"><span>LEXTORY</span><b>READ<br>YOUR<br>WORLD</b><i>✦</i><small>LEARN THROUGH STORIES</small></div><div class="dash-hero-float float-left">Aa <small>VOCABULARY</small></div><div class="dash-hero-float float-right">◖)) <small>AUDIO</small></div></div>';
+ main.insertBefore(hero,main.firstChild);
+ hero.querySelector('#dash-hero-add').onclick=()=>add?.click();
+ hero.querySelector('#dash-hero-catalog').onclick=()=>catalog?.click();
  const layout=document.createElement('div');layout.className='dash-layout';layout.id='dash-layout';
  const centre=document.createElement('div');centre.className='dash-centre';
  const aside=document.createElement('aside');aside.className='dash-aside';aside.id='dash-aside';
@@ -66,6 +70,13 @@ function init(){
  $('dash-next').onclick=()=>{if(due().length)index=(index+1)%due().length;flipped=false;updateCard();};
  $('dash-prev').onclick=()=>{if(due().length)index=(index-1+due().length)%due().length;flipped=false;updateCard();};
  $('dash-speak').onclick=()=>{const item=due()[index];if(item&&window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(item.original);u.lang=item.source==='es'?'es-ES':'en-GB';speechSynthesis.speak(u);}};
+ const cloudPanel=document.createElement('section');cloudPanel.className='dash-panel dash-cloud-panel';cloudPanel.innerHTML='<header><span>☁</span><h3>Tu progreso en todos tus dispositivos</h3><span class="dash-panel-tag" id="dash-sync-tag">LOCAL</span></header><p class="dash-copy">Inicia sesión para sincronizar el avance de tus libros y tu vocabulario. Los archivos siguen guardados en tu dispositivo.</p><button id="dash-sync-open" class="dash-panel-action" type="button">Configurar sincronización <span>→</span></button>';
+ const premiumPanel=document.createElement('section');premiumPanel.className='dash-premium-panel';premiumPanel.innerHTML='<div class="dash-premium-badge">LEXTORY PLUS</div><h3>Escucha. Aprende. Avanza.</h3><p>Voces IA naturales, modo audiolibro avanzado y una experiencia sin anuncios.</p><button id="dash-premium-open" type="button">Descubrir Premium <span>→</span></button><small>Próximamente · Las compras se activarán en Android</small>';
+ aside.append(cloudPanel,premiumPanel);
+ $('dash-sync-open').onclick=()=>document.querySelector('#account-button')?.click();
+ $('dash-premium-open').onclick=()=>document.querySelector('#premium-button')?.click();
+ const sideBottom=document.querySelector('.sidebar-bottom');
+ if(sideBottom){sideBottom.innerHTML='<div class="sidebar-plus-mark">✦</div><strong>Lextory Plus</strong><span>Voces de IA y lectura inmersiva sin anuncios.</span><button id="sidebar-plus-open" type="button">Ver Premium →</button>';sideBottom.querySelector('#sidebar-plus-open').onclick=()=>document.querySelector('#premium-button')?.click();}
  const obs=new MutationObserver(()=>{layout.classList.toggle('hidden',lib.classList.contains('hidden'));filterBooks();});
  obs.observe(lib,{attributes:true,attributeFilter:['class']});obs.observe($('book-list'),{childList:true,subtree:true});
  const v=$('vocabulary-list');if(v)new MutationObserver(refresh).observe(v,{childList:true,subtree:true,characterData:true});
