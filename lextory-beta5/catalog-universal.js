@@ -199,20 +199,13 @@
     const button = document.createElement('button'); button.type = 'button'; button.className = 'catalog-open-button';
     if (book.sourceKey === 'gutenberg' && book.epub) {
       button.textContent = 'Descargar en Mi Biblioteca ↓';
-      button.addEventListener('click', () => importGutenberg(book, button));
+      button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); importGutenberg(book, button); });
     } else {
-      button.textContent = 'Ver ficha en Project Gutenberg ↗';
-      button.addEventListener('click', () => openBookSource(book.sourceUrl));
+      button.textContent = 'EPUB no disponible';
+      button.disabled = true;
     }
     actions.appendChild(button);
-    book.sources.filter(s => s.url && s.url !== book.sourceUrl).forEach(source => {
-      const link = document.createElement('a');
-      link.className = 'catalog-source-link'; link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-      link.textContent = source.label + ' ↗'; actions.appendChild(link);
-    });
-    const sourceLink = document.createElement('a');
-    sourceLink.className = 'catalog-source-link'; sourceLink.href = book.sourceUrl; sourceLink.target = '_blank'; sourceLink.rel = 'noopener noreferrer';
-    sourceLink.textContent = 'Abrir fuente original ↗'; actions.appendChild(sourceLink);
+    // Las tarjetas del catálogo no navegan fuera de Lextory: la acción principal importa el EPUB localmente.
     body.append(title, author, meta, tags, actions);
     card.append(cover, body);
     return card;
@@ -411,6 +404,10 @@
       return;
     }
     const importFile = window.LEXTORY_BOOKS && window.LEXTORY_BOOKS.importFile;
+    if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.waitForDatabase === 'function') {
+      try { await window.LEXTORY_BOOKS.waitForDatabase(); }
+      catch (error) { notify(error.message || 'La biblioteca no está lista.'); return; }
+    }
     if (typeof importFile !== 'function') {
       notify('La biblioteca todavía se está iniciando. Espera un momento y vuelve a intentarlo.');
       return;

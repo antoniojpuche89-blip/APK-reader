@@ -236,6 +236,128 @@ jobs:
                   "        await deleteBookRecord(book.id); await refreshLibrary(); window.dispatchEvent(new CustomEvent('lextory:library-updated', { detail: { deletedBookId: book.id } })); showToast('Libro eliminado de tu biblioteca.');",
                   1
               )
+          library_anchor = "    state.books = (await getAllBooks()).sort((a, b) => (b.updatedAt || b.addedAt) - (a.updatedAt || a.addedAt));"
+          library_filtered = "    state.books = (await getAllBooks()).filter(book => book && book.blob && Number(book.blob.size || 0) > 0 && ['epub', 'pdf'].includes(String(book.format || '').toLowerCase())).sort((a, b) => (b.updatedAt || b.addedAt) - (a.updatedAt || a.addedAt));"
+          if "ONLY_STORED_BOOKS_IN_LIBRARY" not in app_js:
+              if library_anchor not in app_js:
+                  raise SystemExit("Could not locate library rendering filter hook")
+              app_js = app_js.replace(library_anchor, "    // ONLY_STORED_BOOKS_IN_LIBRARY" + chr(10) + library_filtered, 1)
+
+          download_start = "  async function downloadGutenbergBook(book, button) {"
+          download_end = "\\n  function renderCatalogBooks(books, append = false) {"
+          if download_start not in app_js or download_end not in app_js:
+              raise SystemExit("Could not locate native Gutenberg download function")
+          start = app_js.index(download_start)
+          end = app_js.index(download_end, start)
+          new_download = r"""  async function downloadGutenbergBook(book, button) {
+            if (button.disabled) return;
+            const id = Number(book && book.id);
+            if (!Number.isSafeInteger(id) || id <= 0) {
+              showToast('No se ha podido identificar este libro de Project Gutenberg.');
+              return;
+            }
+
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Descargando en Lextory…';
+            try {
+              const official = book.formats && book.formats['application/epub+zip'] || '';
+              const urls = [...new Set([official, ...getGutenbergMirrorEpubUrls(book)].filter(Boolean))];
+              if (!urls.length) throw new Error('Este libro no tiene un enlace EPUB disponible.');
+
+              let downloadedBlob = null;
+              let lastError = null;
+              for (const url of urls) {
+                try {
+                  const controller = new AbortController();
+                  const timeout = setTimeout(() => controller.abort(), 45000);
+                  let response;
+                  try {
+                    response = await fetch(url, {
+                      method: 'GET',
+                      mode: 'cors',
+                      credentials: 'omit',
+                      cache: 'no-store',
+                      redirect: 'follow',
+                      signal: controller.signal,
+                      headers: { Accept: 'application/epub+zip,application/octet-stream;q=0.9,*/*;q=0.8' }
+                    });
+                  } finally {
+                    clearTimeout(timeout);
+                  }
+
+                  if (!response.ok) throw new Error('Respuesta HTTP ' + response.status);
+                  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                  const candidate = await response.blob();
+                  if (!candidate.size || contentType.includes('text/html') || (candidate.type || '').toLowerCase().includes('text/html')) {
+                    throw new Error('El servidor no ha entregado un archivo EPUB.');
+                  }
+                  const signature = new Uint8Array(await candidate.slice(0, 4).arrayBuffer());
+                  if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+                    throw new Error('El archivo recibido no tiene formato EPUB/ZIP.');
+                  }
+                  downloadedBlob = candidate;
+                  break;
+                } catch (error) {
+                  lastError = error;
+                  console.warn('No se pudo importar EPUB desde Project Gutenberg:', url, error);
+                }
+              }
+
+              if (!downloadedBlob) {
+                const detail = lastError && lastError.message ? ' (' + lastError.message + ')' : '';
+                throw new Error('Gutenberg no ha permitido importar este EPUB directamente' + detail + '. No se ha abierto ninguna ventana ni se ha descargado fuera de Lextory.');
+              }
+
+              const safeTitle = (book.title || ('Libro ' + id)).replace(/[\\/:*?"<>|]+/g, '-').trim();
+              const file = new File([downloadedBlob], (safeTitle || ('Libro ' + id)) + '.epub', {
+                type: 'application/epub+zip',
+                lastModified: Date.now()
+              });
+              button.textContent = 'Guardando en Mi Biblioteca…';
+              const saved = await importBook(file, {
+                title: book.title,
+                sourceKey: 'gutenberg',
+                sourceId: String(id)
+              }, { openReader: false });
+
+              if (!saved || !saved.blob || !Number(saved.blob.size || 0)) {
+                throw new Error('Lextory no ha confirmado que el libro se haya guardado.');
+              }
+
+              button.textContent = '✓ En Mi Biblioteca';
+              button.classList.add('is-downloaded');
+              button.closest('.catalog-card')?.remove();
+              showToast('«' + (book.title || 'El libro') + '» ya está guardado en Mi Biblioteca. Ábrelo desde su portada.');
+            } catch (error) {
+              console.error('No se pudo guardar el libro de Gutenberg en Lextory:', error);
+              button.disabled = false;
+              button.textContent = originalText;
+              showToast(error && error.message ? error.message : 'No se pudo guardar el EPUB en Lextory.');
+            }
+          }
+
+          """
+          app_js = app_js[:start] + new_download + app_js[end:]
+
+          native_action_start = "    button.textContent = hasEpub ? 'Descargar al lector ↓' : 'Ver ficha oficial ↗';"
+          native_action_end = "    actions.append(button, sourceLink);"
+          if native_action_start in app_js and native_action_end in app_js:
+              start = app_js.index(native_action_start)
+              end = app_js.index(native_action_end, start) + len(native_action_end)
+              native_action = """    if (hasEpub) {
+              button.textContent = 'Descargar en Mi Biblioteca ↓';
+              button.addEventListener('click', event => {
+                event.preventDefault(); event.stopPropagation();
+                downloadGutenbergBook(book, button);
+              });
+            } else {
+              button.textContent = 'EPUB no disponible';
+              button.disabled = true;
+            }
+            actions.appendChild(button);"""
+              app_js = app_js[:start] + native_action + app_js[end:]
+
           app.write_text(app_js)
           PY
           test -s site/bobby-reading.webp
@@ -250,7 +372,7 @@ jobs:
           grep -q 'lector-vocabulary-updated-at' site/app.js
           grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
           grep -q 'window.LEXTORY_BOOKS.importFile' site/app.js
-          grep -q 'lextory-shell-v26' site/sw.js
+          grep -q 'lextory-shell-v27' site/sw.js
           grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
           grep -q 'Project Gutenberg' site/catalog-universal.js
           if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi

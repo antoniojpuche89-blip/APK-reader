@@ -1,4 +1,4 @@
-const CACHE_NAME='lextory-shell-v26';
+const CACHE_NAME='lextory-shell-v27';
 const CORE_FILES=['./','./index.html','./styles.css','./dashboard.css','./app.js','./dashboard.js','./catalog-universal.js','./cloud-sync.js','./supabase-config.js','./premium-ui.js','./reader-enhancements.js','./privacy.html','./delete-account.html','./manifest.webmanifest','./icon.svg','./bobby-reading.webp'];
 const IMAGE_HOSTS=['gutenberg.org','gutendex.com'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(CORE_FILES)).then(()=>self.skipWaiting())));
