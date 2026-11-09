@@ -405,8 +405,8 @@ jobs:
               ("site/catalog-universal.js", "Project Gutenberg"),
               ("site/catalog-universal.js", "catalog-import-external"),
               ("site/catalog-universal.js", "functions/v1/gutenberg-epub"),
-              ("site/app.js", "SAVE_BEFORE_COVER_EXTRACTION"),
-              ("site/dashboard.css", "THEME_CONSISTENCY_V29"),
+              ("site/app.js", "Save the EPUB/PDF before attempting any heavy cover extraction."),
+              ("site/dashboard.css", "body:not(.dark) .app-sidebar"),
           ]
           for file_name, marker in required:
               path = Path(file_name)
