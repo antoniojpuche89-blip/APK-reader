@@ -85,7 +85,7 @@ function initReadingStats(){
   if($('dash-stat-minutes'))$('dash-stat-minutes').textContent=Math.floor(data.totalSeconds/60).toLocaleString('es-IE');
   const s=streak();if($('dash-stat-streak'))$('dash-stat-streak').textContent=s+(s===1?' día':' días');
  }
- async let renderBooksPromise=null;
+ let renderBooksPromise=null;
  function updateBookStats(){
   const rows=Array.from(localBookRows.values());
   const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
