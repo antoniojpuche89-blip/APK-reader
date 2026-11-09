@@ -140,7 +140,7 @@ jobs:
               const ext = String(file.name || '').split('.').pop().toLowerCase();
               if (!['epub', 'pdf'].includes(ext)) { showToast('Elige un archivo EPUB o PDF.'); return null; }
               if (file.size > 180 * 1024 * 1024) { showToast('El archivo supera el límite recomendado de 180 MB.'); return null; }
-          
+
               try {
                 const normalise = value => String(value || '')
                   .replace(/\.(epub|pdf)$/i, '')
@@ -150,32 +150,32 @@ jobs:
                 const duplicate = existingBooks.find(book => {
                   if (!book.blob || !Number(book.blob.size || 0)) return false;
                   if (metadata.sourceKey && metadata.sourceId != null &&
-            book.sourceKey === metadata.sourceKey &&
-            String(book.sourceId || '') === String(metadata.sourceId)) return true;
+                      book.sourceKey === metadata.sourceKey &&
+                      String(book.sourceId || '') === String(metadata.sourceId)) return true;
                   return metadata.allowTitleMatch !== false &&
-          (normalise(book.title) === normalise(metadata.title || safeBookTitle(file.name)) || normalise(book.fileName) === normalise(file.name));
+                    (normalise(book.title) === normalise(metadata.title || safeBookTitle(file.name)) ||
+                     normalise(book.fileName) === normalise(file.name));
                 });
                 if (duplicate) {
-                  await refreshLibrary();
+                  await refreshLibrary(true);
                   if (options.openReader === true) openBook(duplicate.id);
                   return duplicate;
                 }
-          
-                const id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(16).slice(2));
-                showToast('Guardando libro en tu biblioteca…');
-                let coverDataUrl = metadata.coverDataUrl || null;
-                if (!coverDataUrl) {
-                  try { coverDataUrl = await extractBookCover(file, ext); }
-                  catch (coverError) { console.info('El libro se guardará sin portada:', coverError); }
-                }
-          
+
+                const id = (crypto.randomUUID && crypto.randomUUID()) ||
+                  (Date.now() + '-' + Math.random().toString(16).slice(2));
+                showToast('Guardando el libro en Mi Biblioteca…');
+
+                // Save the EPUB/PDF before attempting any heavy cover extraction.
+                // Use a Blob (rather than depending on File serialization support).
+                const storedBlob = file.slice(0, file.size, file.type || (ext === 'epub' ? 'application/epub+zip' : 'application/pdf'));
                 const book = {
-                  id: id,
+                  id,
                   title: metadata.title || safeBookTitle(file.name),
                   fileName: file.name,
                   format: ext,
-                  blob: file,
-                  coverDataUrl: coverDataUrl || null,
+                  blob: storedBlob,
+                  coverDataUrl: metadata.coverDataUrl || null,
                   addedAt: Date.now(),
                   updatedAt: Date.now(),
                   progress: 0,
@@ -185,49 +185,69 @@ jobs:
                   sourceKey: metadata.sourceKey || null,
                   sourceId: metadata.sourceId == null ? null : String(metadata.sourceId)
                 };
-          
-                await putBook(book);
-                await refreshLibrary();
+
+                await new Promise((resolve, reject) => {
+                  let tx;
+                  try {
+                    tx = state.db.transaction(STORE, 'readwrite');
+                    tx.objectStore(STORE).put(book);
+                  } catch (error) {
+                    reject(error);
+                    return;
+                  }
+                  tx.oncomplete = () => resolve(true);
+                  tx.onerror = () => reject(tx.error || new Error('La base de datos no pudo guardar el libro.'));
+                  tx.onabort = () => reject(tx.error || new Error('El guardado del libro se canceló.'));
+                });
+
+                // Read-after-write verification: do not tell the user the download is
+                // complete until the stored bytes can be read back from IndexedDB.
+                const persisted = await getBook(id);
+                if (!persisted || !persisted.blob || Number(persisted.blob.size || 0) !== Number(file.size || 0)) {
+                  throw new Error('El EPUB se recibió, pero el archivo no quedó guardado correctamente en este dispositivo.');
+                }
+
+                await refreshLibrary(true);
                 if ($('file-input')) $('file-input').value = '';
-                showToast('Libro añadido a tu biblioteca.');
+                showToast('Libro guardado en Mi Biblioteca.');
                 window.dispatchEvent(new CustomEvent('lextory:library-updated', {
                   detail: { bookId: id, title: book.title }
                 }));
+
+                // Generate the cover after the book is safely stored. If it fails,
+                // the local fallback cover remains clickable and the book is readable.
+                if (!book.coverDataUrl) {
+                  Promise.resolve().then(async () => {
+                    try {
+                      const coverDataUrl = await extractBookCover(storedBlob, ext);
+                      if (!coverDataUrl) return;
+                      const current = await getBook(id);
+                      if (!current || current.coverDataUrl) return;
+                      current.coverDataUrl = coverDataUrl;
+                      current.updatedAt = Date.now();
+                      await putBook(current);
+                      await refreshLibrary(true);
+                    } catch (coverError) {
+                      console.info('Libro guardado; no se pudo generar la portada:', coverError);
+                    }
+                  });
+                }
+
                 if (options.openReader !== false) openBook(id);
-                return book;
+                return persisted;
               } catch (error) {
                 console.error('No se pudo guardar el libro:', error);
-                showToast('No se pudo guardar el libro. Comprueba el espacio disponible.');
+                const message = error && error.name === 'QuotaExceededError'
+                  ? 'No hay suficiente espacio disponible en este dispositivo para guardar el libro.'
+                  : (error && error.message
+                    ? 'No se pudo guardar el libro: ' + error.message
+                    : 'No se pudo guardar el libro. Comprueba el espacio disponible.');
+                showToast(message);
                 return null;
               }
             }
-          
-            async function waitForLibraryDatabase(timeoutMs = 20000) {
-              const started = Date.now();
-              while (!state.db) {
-                if (Date.now() - started >= timeoutMs) {
-                  throw new Error('La biblioteca local todavía no está lista. Recarga Lextory e inténtalo de nuevo.');
-                }
-                await new Promise(resolve => setTimeout(resolve, 50));
-              }
-              return state.db;
-            }
 
-            window.LEXTORY_BOOKS = window.LEXTORY_BOOKS || {};
-            window.LEXTORY_BOOKS.waitForDatabase = waitForLibraryDatabase;
-            window.LEXTORY_BOOKS.importFile = async (file, metadata = {}, options = {}) => {
-              await waitForLibraryDatabase();
-              return importBook(file, metadata, options);
-            };
-            window.LEXTORY_BOOKS.getAll = async () => {
-              await waitForLibraryDatabase();
-              return getAllBooks();
-            };
-            window.LEXTORY_BOOKS.refresh = async () => {
-              await waitForLibraryDatabase();
-              return refreshLibrary();
-            };
-          """
+            """
               app_js = app_js[:start] + new_import + app_js[end:]
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
           if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
