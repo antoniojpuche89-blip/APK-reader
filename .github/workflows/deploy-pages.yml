@@ -444,9 +444,7 @@ jobs:
           app_js = app_js[:hs] + new_hydration + app_js[he:]
 
           # Persisted reading progress is sent to the dashboard without another IndexedDB scan.
-          save_anchor = """    state.saveTimer = setTimeout(async () => {
-      try { await putBook(state.currentBook); } catch (error) { console.warn('No se pudo guardar el progreso', error); }
-    }, 350);"""
+          save_anchor = "    state.saveTimer = setTimeout(async () => {\\n      try { await putBook(state.currentBook); } catch (error) { console.warn('No se pudo guardar el progreso', error); }\\n    }, 350);"
           save_replacement = """    const targetBook = state.currentBook;
             const targetBookId = targetBook.id;
             state.saveTimer = setTimeout(async () => {
@@ -647,13 +645,16 @@ jobs:
               ("site/app.js", "lector-vocabulary-updated-at"),
               ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
               ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
-              ("site/sw.js", "lextory-shell-v29"),
+              ("site/sw.js", "lextory-shell-v30"),
               ("site/index.html", "unpkg.com/@supabase/supabase-js@2"),
               ("site/catalog-universal.js", "Project Gutenberg"),
               ("site/catalog-universal.js", "catalog-import-external"),
               ("site/catalog-universal.js", "functions/v1/gutenberg-epub"),
               ("site/app.js", "Save the EPUB/PDF before attempting any heavy cover extraction."),
               ("site/dashboard.css", "body:not(.dark) .app-sidebar"),
+              ("site/app.js", "lextory:reading-progress-updated"),
+              ("site/app.js", "document.addEventListener('click', event =>"),
+              ("site/dashboard.js", "lextory:library-rendered"),
           ]
           image_asset = Path("site/bobby-reading.webp")
           if not image_asset.is_file() or image_asset.stat().st_size == 0:
