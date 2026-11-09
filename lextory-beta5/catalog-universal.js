@@ -419,59 +419,48 @@
     try {
       const existing = await findStoredBook(book);
       if (existing) {
-        button.textContent = '✓ Descargado';
+        button.textContent = '✓ En Mi Biblioteca';
         button.classList.add('is-downloaded');
         button.closest('.catalog-card')?.remove();
         notify('«' + book.title + '» ya está guardado en Mi Biblioteca.');
         return;
       }
 
-      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\/:*?"<>|]+/g, '-').trim();
+      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\\\/:*?"<>|]+/g, '-').trim();
       const fileName = safeTitle + '.epub';
-      const urls = [];
-      const official = book.formats && book.formats['application/epub+zip'];
-      if (official) urls.push(official);
-      const mirror = 'https://gutenberg.pglaf.org/cache/epub/' + id + '/';
-      urls.push(mirror + 'pg' + id + '.epub', mirror + 'pg' + id + '-images.epub');
-
-      button.textContent = 'Descargando EPUB…';
-      let blob = null, lastError = null;
-      for (const url of [...new Set(urls)]) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 35000);
-          let response;
-          try {
-            response = await fetch(url, {
-              method: 'GET',
-              mode: 'cors',
-              credentials: 'omit',
-              cache: 'no-store',
-              signal: controller.signal,
-              headers: { Accept: 'application/epub+zip,application/octet-stream;q=0.9,*/*;q=0.8' }
-            });
-          } finally { clearTimeout(timeout); }
-
-          if (!response.ok) throw new Error('Respuesta HTTP ' + response.status);
-          const candidate = await response.blob();
-          if (!candidate.size || (candidate.type || '').toLowerCase().includes('text/html')) {
-            throw new Error('El servidor devolvió una página web, no un EPUB.');
-          }
-          const signature = new Uint8Array(await candidate.slice(0, 4).arrayBuffer());
-          if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
-            throw new Error('El archivo recibido no tiene formato EPUB/ZIP.');
-          }
-          blob = candidate;
-          break;
-        } catch (error) {
-          lastError = error;
-          console.warn('No se pudo descargar desde una fuente EPUB:', url, error);
-        }
+      const config = window.LEXTORY_SUPABASE_CONFIG || {};
+      if (!config.url || !config.publishableKey) {
+        throw new Error('No está disponible el servicio seguro de descarga de Lextory.');
       }
 
-      if (!blob) {
-        const detail = lastError && lastError.message ? ' (' + lastError.message + ')' : '';
-        throw new Error('No se pudo descargar este EPUB directamente de Project Gutenberg' + detail + '.');
+      button.textContent = 'Descargando EPUB en Lextory…';
+      const endpoint = config.url.replace(/\\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
+          cache: 'no-store',
+          signal: controller.signal,
+          headers: {
+            apikey: config.publishableKey,
+            Accept: 'application/epub+zip,application/octet-stream;q=0.9'
+          }
+        });
+      } finally { clearTimeout(timeout); }
+      if (!response.ok) {
+        let detail = '';
+        try { const payload = await response.json(); detail = payload.error || ''; } catch (_) {}
+        throw new Error(detail || ('El servicio de Gutenberg respondió HTTP ' + response.status + '.'));
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Gutenberg ha devuelto un archivo vacío.');
+      const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+      if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+        throw new Error('La respuesta no contiene un EPUB válido.');
       }
 
       const file = new File([blob], fileName, {

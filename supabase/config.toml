@@ -1,0 +1,4 @@
+project_id = "vhrodlqebanuqrpxlgww"
+
+[functions.gutenberg-epub]
+verify_jwt = false
