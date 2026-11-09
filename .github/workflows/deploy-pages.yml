@@ -444,7 +444,7 @@ jobs:
           app_js = app_js[:hs] + new_hydration + app_js[he:]
 
           # Persisted reading progress is sent to the dashboard without another IndexedDB scan.
-          save_anchor = "    state.saveTimer = setTimeout(async () => {\\n      try { await putBook(state.currentBook); } catch (error) { console.warn('No se pudo guardar el progreso', error); }\\n    }, 350);"
+          save_anchor = "    state.saveTimer = setTimeout(async () => {\n      try { await putBook(state.currentBook); } catch (error) { console.warn('No se pudo guardar el progreso', error); }\n    }, 350);"
           save_replacement = """    const targetBook = state.currentBook;
             const targetBookId = targetBook.id;
             state.saveTimer = setTimeout(async () => {
