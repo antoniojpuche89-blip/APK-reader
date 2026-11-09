@@ -396,6 +396,20 @@
     });
   }
 
+  function downloadBlobToDevice(blob, fileName) {
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    try { link.click(); }
+    finally {
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    }
+  }
+
   async function importGutenberg(book, button) {
     if (button.disabled) return;
     const id = Number(String(book.id).replace('gut-', ''));
@@ -403,43 +417,24 @@
       notify('No se ha podido identificar el EPUB de Project Gutenberg.');
       return;
     }
-    const importFile = window.LEXTORY_BOOKS && window.LEXTORY_BOOKS.importFile;
-    if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.waitForDatabase === 'function') {
-      try { await window.LEXTORY_BOOKS.waitForDatabase(); }
-      catch (error) { notify(error.message || 'La biblioteca no está lista.'); return; }
-    }
-    if (typeof importFile !== 'function') {
-      notify('La biblioteca todavía se está iniciando. Espera un momento y vuelve a intentarlo.');
-      return;
-    }
 
     const original = button.textContent;
     button.disabled = true;
-    button.textContent = 'Comprobando biblioteca…';
+    button.textContent = 'Descargando EPUB…';
     try {
-      const existing = await findStoredBook(book);
-      if (existing) {
-        button.textContent = '✓ En Mi Biblioteca';
-        button.classList.add('is-downloaded');
-        button.closest('.catalog-card')?.remove();
-        notify('«' + book.title + '» ya está guardado en Mi Biblioteca.');
-        return;
-      }
-
-      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\\\/:*?"<>|]+/g, '-').trim();
-      const fileName = safeTitle + '.epub';
       const config = window.LEXTORY_SUPABASE_CONFIG || {};
       if (!config.url || !config.publishableKey) {
         throw new Error('No está disponible el servicio seguro de descarga de Lextory.');
       }
 
-      button.textContent = 'Descargando EPUB en Lextory…';
+      const safeTitle = (book.title || 'Libro ' + id).replace(/[\\/:*?"<>|]+/g, '-').trim();
+      const fileName = (safeTitle || 'Libro ' + id) + '.epub';
       const endpoint = config.url.replace(/\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
-      let response;
+      let blob;
       try {
-        response = await fetch(endpoint, {
+        const response = await fetch(endpoint, {
           method: 'GET',
           mode: 'cors',
           credentials: 'omit',
@@ -450,14 +445,17 @@
             Accept: 'application/epub+zip,application/octet-stream;q=0.9'
           }
         });
-      } finally { clearTimeout(timeout); }
-      if (!response.ok) {
-        let detail = '';
-        try { const payload = await response.json(); detail = payload.error || ''; } catch (_) {}
-        throw new Error(detail || ('El servicio de Gutenberg respondió HTTP ' + response.status + '.'));
+        if (!response.ok) {
+          let detail = '';
+          try { const payload = await response.json(); detail = payload.error || ''; } catch (_) {}
+          throw new Error(detail || ('El servicio de Gutenberg respondió HTTP ' + response.status + '.'));
+        }
+        blob = await response.blob();
+      } finally {
+        clearTimeout(timeout);
       }
-      const blob = await response.blob();
-      if (!blob.size) throw new Error('Gutenberg ha devuelto un archivo vacío.');
+
+      if (!blob || !blob.size) throw new Error('Gutenberg ha devuelto un archivo vacío.');
       const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
       if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
         throw new Error('La respuesta no contiene un EPUB válido.');
@@ -468,21 +466,39 @@
         lastModified: Date.now()
       });
       button.textContent = 'Guardando en Mi Biblioteca…';
-      const saved = await importFile(file, {
-        title: book.title,
-        sourceKey: 'gutenberg',
-        sourceId: String(id)
-      }, { openReader: false });
+
+      const library = window.LEXTORY_BOOKS || {};
+      let saved = null;
+      let saveError = '';
+      try {
+        if (typeof library.importFile === 'function') {
+          saved = await library.importFile(file, {
+            title: book.title,
+            sourceKey: 'gutenberg',
+            sourceId: String(id)
+          }, { openReader: false });
+        } else {
+          saveError = 'La biblioteca local de Lextory no está disponible.';
+        }
+      } catch (error) {
+        saveError = error && error.message ? error.message : 'No se pudo abrir la biblioteca local.';
+      }
 
       if (!saved || !saved.blob || !Number(saved.blob.size || 0)) {
-        throw new Error('Lextory no confirmó el guardado del archivo. Comprueba el espacio disponible e inténtalo de nuevo.');
+        saveError = saveError || library.lastImportError || 'El navegador no confirmó el guardado en la biblioteca.';
+        downloadBlobToDevice(blob, fileName);
+        button.disabled = false;
+        button.textContent = 'Descargado al dispositivo';
+        button.title = 'El EPUB está en Descargas. Puedes importarlo manualmente en Lextory.';
+        notify('El EPUB se ha descargado en tu dispositivo, pero no se pudo guardar automáticamente en Mi Biblioteca. ' + saveError);
+        return;
       }
 
       button.textContent = '✓ Descargado';
       button.classList.add('is-downloaded');
       button.closest('.catalog-card')?.remove();
-      const count = $('catalog-result-count');
       const remaining = $('catalog-results')?.querySelectorAll('.catalog-card').length || 0;
+      const count = $('catalog-result-count');
       if (count) count.textContent = remaining + (remaining === 1 ? ' libro disponible para explorar' : ' libros disponibles para explorar');
       if (!remaining) {
         const empty = document.createElement('div');
@@ -498,7 +514,6 @@
       notify(error && error.message ? error.message : 'No se pudo guardar el EPUB en Lextory.');
     }
   }
-
 
   function activateCatalog() {
     $('my-library-section').classList.add('hidden');

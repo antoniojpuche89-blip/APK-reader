@@ -619,6 +619,51 @@ jobs:
 
           """
           app_js = app_js[:start] + new_download + app_js[end:]
+          # Never lose a book when IndexedDB is still opening or its view refresh fails.
+          helper_anchor = "  async function downloadGutenbergBook(book, button) {"
+          helper_code = "  function saveBlobToDevice(blob, fileName) { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = fileName; link.hidden = true; document.body.appendChild(link); try { link.click(); } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); } }\n\n"
+          if "function saveBlobToDevice(blob, fileName)" not in app_js:
+              if helper_anchor not in app_js:
+                  raise SystemExit("Could not locate native Gutenberg download handler")
+              app_js = app_js.replace(helper_anchor, helper_code + helper_anchor, 1)
+
+          import_anchor = "  async function importBook(file, metadata = {}, options = {}) {\n    if (!file) return null;"
+          import_replacement = "  async function importBook(file, metadata = {}, options = {}) {\n    if (!file) return null;\n    if (window.LEXTORY_BOOKS) window.LEXTORY_BOOKS.lastImportError = '';\n    try { await waitForLibraryDatabase(8000); } catch (dbError) {\n      const reason = dbError && dbError.message ? dbError.message : 'La biblioteca local no está disponible.';\n      if (window.LEXTORY_BOOKS) window.LEXTORY_BOOKS.lastImportError = reason;\n      showToast('No se pudo abrir la biblioteca local: ' + reason);\n      return null;\n    }"
+          if import_anchor not in app_js:
+              raise SystemExit("Could not locate importBook entry point")
+          app_js = app_js.replace(import_anchor, import_replacement, 1)
+
+          duplicate_refresh = "        await refreshLibrary(true);\n        if (options.openReader === true) openBook(duplicate.id);"
+          duplicate_refresh_new = "        try { await refreshLibrary(true); } catch (refreshError) { console.warn('Libro ya guardado; no se pudo actualizar la vista:', refreshError); }\n        if (options.openReader === true) openBook(duplicate.id);"
+          if duplicate_refresh not in app_js:
+              raise SystemExit("Could not locate duplicate refresh block")
+          app_js = app_js.replace(duplicate_refresh, duplicate_refresh_new, 1)
+
+          saved_refresh = "      await refreshLibrary(true);\n      if ($('file-input')) $('file-input').value = '';"
+          saved_refresh_new = "      try { await refreshLibrary(true); } catch (refreshError) { console.warn('Libro guardado, pero no se pudo actualizar la vista:', refreshError); }\n      if ($('file-input')) $('file-input').value = '';"
+          if saved_refresh not in app_js:
+              raise SystemExit("Could not locate post-save refresh block")
+          app_js = app_js.replace(saved_refresh, saved_refresh_new, 1)
+
+          import_error_anchor = """      showToast(message);
+          return null;
+        }
+      }"""
+          import_error_new = """      if (window.LEXTORY_BOOKS) window.LEXTORY_BOOKS.lastImportError = error && error.message ? error.message : message;
+          showToast(message);
+          return null;
+        }
+      }"""
+          if import_error_anchor not in app_js:
+              raise SystemExit("Could not locate importBook catch return")
+          app_js = app_js.replace(import_error_anchor, import_error_new, 1)
+
+          wrapper_anchor = "  window.LEXTORY_BOOKS.importFile = async (file, metadata = {}, options = {}) => {\n    await waitForLibraryDatabase();"
+          wrapper_new = "  window.LEXTORY_BOOKS.importFile = async (file, metadata = {}, options = {}) => {\n    await waitForLibraryDatabase(8000);"
+          if wrapper_anchor not in app_js:
+              raise SystemExit("Could not locate public importFile wrapper")
+          app_js = app_js.replace(wrapper_anchor, wrapper_new, 1)
+
 
           native_action_start = "    button.textContent = hasEpub ? 'Descargar al lector ↓' : 'Ver ficha oficial ↗';"
           native_action_end = "    actions.append(button, sourceLink);"
