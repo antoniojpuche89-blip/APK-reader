@@ -514,10 +514,10 @@ jobs:
 
           # Keep the generated script readable and ensure no duplicate theme/nav listeners remain.
           lazy_dependencies = [
-              ("    if (!window.JSZip || !file) return null;", "    if (!file) return null;\\n    await ensureJsZip();"),
-              ("    if (!window.pdfjsLib || !file) return null;", "    if (!file) return null;\\n    await ensurePdfJs();"),
-              ("  async function openPdf(book) {\\n    if (!window.pdfjsLib) throw new Error('PDF.js no está disponible.');", "  async function openPdf(book) {\\n    await ensurePdfJs();"),
-              ("  async function openEpub(book) {\\n    if (typeof window.ePub !== 'function') throw new Error('El lector EPUB no está disponible.');", "  async function openEpub(book) {\\n    await ensureEpubJs();"),
+              ("    if (!window.JSZip || !file) return null;", "    if (!file) return null;\n    await ensureJsZip();"),
+              ("    if (!window.pdfjsLib || !file) return null;", "    if (!file) return null;\n    await ensurePdfJs();"),
+              ("  async function openPdf(book) {\n    if (!window.pdfjsLib) throw new Error('PDF.js no está disponible.');", "  async function openPdf(book) {\n    await ensurePdfJs();"),
+              ("  async function openEpub(book) {\n    if (typeof window.ePub !== 'function') throw new Error('El lector EPUB no está disponible.');", "  async function openEpub(book) {\n    await ensureEpubJs();"),
           ]
           for old, new in lazy_dependencies:
               if old not in app_js:
