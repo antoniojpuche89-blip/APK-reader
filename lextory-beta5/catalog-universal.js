@@ -434,7 +434,7 @@
       }
 
       button.textContent = 'Descargando EPUB en Lextory…';
-      const endpoint = config.url.replace(/\\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
+      const endpoint = config.url.replace(/\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
       let response;

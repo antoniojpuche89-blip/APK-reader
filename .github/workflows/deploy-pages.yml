@@ -264,7 +264,7 @@ jobs:
               if (!config.url || !config.publishableKey) {
                 throw new Error('No está disponible el servicio seguro de descarga de Lextory.');
               }
-              const endpoint = config.url.replace(/\\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
+              const endpoint = config.url.replace(/\/+$/, '') + '/functions/v1/gutenberg-epub?id=' + encodeURIComponent(String(id));
               const controller = new AbortController();
               const timeout = setTimeout(() => controller.abort(), 60000);
               let response;
