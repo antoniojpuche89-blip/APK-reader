@@ -388,7 +388,6 @@ jobs:
           from pathlib import Path
 
           required = [
-              ("site/bobby-reading.webp", "bobby-reading.webp"),
               ("site/dashboard.js", "bobby-reading.webp"),
               ("site/sw.js", "bobby-reading.webp"),
               ("site/index.html", "dashboard.css"),
@@ -408,6 +407,11 @@ jobs:
               ("site/app.js", "Save the EPUB/PDF before attempting any heavy cover extraction."),
               ("site/dashboard.css", "body:not(.dark) .app-sidebar"),
           ]
+          image_asset = Path("site/bobby-reading.webp")
+          if not image_asset.is_file() or image_asset.stat().st_size == 0:
+              raise SystemExit("Build validation failed: missing or empty site/bobby-reading.webp")
+          print("OK site/bobby-reading.webp exists")
+
           for file_name, marker in required:
               path = Path(file_name)
               if not path.exists():
