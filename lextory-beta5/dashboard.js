@@ -36,7 +36,8 @@ function filterBooks(){
   const fill=card.querySelector('.book-progress span');
   let pct=savedPct!==null?savedPct:(parseFloat(fill?.style.width||'0')||0);
   pct=Math.max(0,Math.min(100,pct));
-  if(fill&&savedPct!==null)fill.style.width=pct+'%';
+  const width=pct+'%';
+  if(fill&&savedPct!==null&&fill.style.width!==width)fill.style.width=width;
   const ok=(!query||txt.includes(query))&&(filter==='all'||(filter==='reading'&&pct>0&&pct<100)||(filter==='pending'&&pct<=0)||(filter==='completed'&&pct>=100));
   card.classList.toggle('dash-filter-hidden',!ok);
   const cover=card.querySelector('.book-cover-mini');
@@ -45,7 +46,6 @@ function filterBooks(){
    if(!badge){badge=document.createElement('span');badge.className='dash-status';cover.appendChild(badge);}
    badge.className='dash-status'+(pct>=100?' done':pct===0?' pending':'');
    badge.textContent=pct>=100?'Completado':pct>0?'Leyendo':'Pendiente';
-
    const hasStoredFile=Boolean(row&&row.blob&&Number(row.blob.size||0)>0);
    let downloadBadge=cover.querySelector('.dash-download-status');
    if(hasStoredFile&&!downloadBadge){
@@ -62,7 +62,8 @@ function filterBooks(){
   if(detail&&progress){
    let label=detail.querySelector('.dash-progress-label');
    if(!label){label=document.createElement('small');label.className='dash-progress-label';progress.insertAdjacentElement('afterend',label);}
-   label.textContent=pct.toLocaleString('es-IE',{maximumFractionDigits:0})+'% leído';
+   const labelText=pct.toLocaleString('es-IE',{maximumFractionDigits:0})+'% leído';
+   if(label.textContent!==labelText)label.textContent=labelText;
    label.setAttribute('aria-label',pct.toFixed(0)+' por ciento leído');
   }
  });
@@ -84,22 +85,47 @@ function initReadingStats(){
   if($('dash-stat-minutes'))$('dash-stat-minutes').textContent=Math.floor(data.totalSeconds/60).toLocaleString('es-IE');
   const s=streak();if($('dash-stat-streak'))$('dash-stat-streak').textContent=s+(s===1?' día':' días');
  }
+ async let renderBooksPromise=null;
+ function updateBookStats(){
+  const rows=Array.from(localBookRows.values());
+  const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
+  const activeBooks=rows.filter(b=>Number(b.progress||0)>0&&Number(b.progress||0)<100).length;
+  if($('dash-stat-books'))$('dash-stat-books').textContent=completed.toLocaleString('es-IE');
+  if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent=rows.length+' en biblioteca';
+  if($('dash-stats-note'))$('dash-stats-note').textContent=activeBooks+' '+(activeBooks===1?'libro en lectura':'libros en lectura')+' · Tiempo y racha registrados en este dispositivo desde esta actualización.';
+ }
  async function renderBooks(){
-  try{
-   const req=indexedDB.open(DB_NAME,1);
-   const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error('Biblioteca ocupada'));});
-   if(!db.objectStoreNames.contains('books')){db.close();return;}
-   const tx=db.transaction('books','readonly'),get=tx.objectStore('books').getAll();
-   const rows=await new Promise((resolve,reject)=>{get.onsuccess=()=>resolve(get.result||[]);get.onerror=()=>reject(get.error);});
-   db.close();
-   localBookRows=new Map(rows.map(row=>[String(row.id),row]));
-   filterBooks();
-   const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
-   const activeBooks=rows.filter(b=>Number(b.progress||0)>0&&Number(b.progress||0)<100).length;
-   if($('dash-stat-books'))$('dash-stat-books').textContent=completed.toLocaleString('es-IE');
-   if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent=rows.length+' en biblioteca';
-   if($('dash-stats-note'))$('dash-stats-note').textContent=activeBooks+' '+(activeBooks===1?'libro en lectura':'libros en lectura')+' · Tiempo y racha registrados en este dispositivo desde esta actualización.';
-  }catch(error){console.warn('Lextory stats:',error);if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent='No disponible';}
+  if(renderBooksPromise)return renderBooksPromise;
+  renderBooksPromise=(async()=>{
+   try{
+    if(window.LEXTORY_BOOKS?.waitForDatabase)await window.LEXTORY_BOOKS.waitForDatabase();
+    let rows=[];
+    if(window.LEXTORY_BOOKS?.getAll)rows=await window.LEXTORY_BOOKS.getAll();
+    else{
+     const req=indexedDB.open(DB_NAME,1);
+     const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error('Biblioteca ocupada'));});
+     if(!db.objectStoreNames.contains('books')){db.close();return;}
+     const tx=db.transaction('books','readonly'),get=tx.objectStore('books').getAll();
+     rows=await new Promise((resolve,reject)=>{get.onsuccess=()=>resolve(get.result||[]);get.onerror=()=>reject(get.error);});
+     db.close();
+    }
+    localBookRows=new Map((rows||[]).map(row=>[String(row.id),row]));
+    filterBooks();
+    updateBookStats();
+   }catch(error){console.warn('Lextory stats:',error);if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent='No disponible';}
+   finally{renderBooksPromise=null;}
+  })();
+  return renderBooksPromise;
+ }
+ function applyProgressUpdate(event){
+  const detail=event.detail||{};
+  const row=localBookRows.get(String(detail.bookId||''));
+  if(!row){renderBooks();return;}
+  if(Number.isFinite(Number(detail.progress)))row.progress=Number(detail.progress);
+  if(Number.isFinite(Number(detail.lastPage)))row.lastPage=Number(detail.lastPage);
+  if(detail.updatedAt)row.updatedAt=detail.updatedAt;
+  filterBooks();
+  updateBookStats();
  }
  function tick(force){
   const now=Date.now(),active=(force?readerOpen:isOpen())&&!document.hidden;
@@ -111,7 +137,7 @@ function initReadingStats(){
  }
  function markActivity(){if(readerOpen&&!document.hidden){tick();lastActivity=Date.now();}}
  const reader=$('reader-screen');readerOpen=isOpen();
- if(reader)new MutationObserver(()=>{const open=isOpen();if(readerOpen&&!open)tick(true);if(!readerOpen&&open){lastActivity=Date.now();lastTick=lastActivity;}readerOpen=open;}).observe(reader,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});
+ if(reader)new MutationObserver(()=>{const open=isOpen();if(readerOpen&&!open)tick(true);if(!readerOpen&&open){lastActivity=Date.now();lastTick=lastActivity;}readerOpen=open;}).observe(reader,{attributes:true,attributeFilter:['class']});
  document.addEventListener('pointerdown',markActivity,{passive:true,capture:true});
  document.addEventListener('keydown',markActivity,true);
  document.addEventListener('touchstart',markActivity,{passive:true,capture:true});
@@ -120,11 +146,11 @@ function initReadingStats(){
  document.addEventListener('click',e=>{if(e.target.closest('#back-button'))tick(true);},true);
  window.addEventListener('beforeunload',()=>tick(true));
  setInterval(()=>{tick();},15000);
- window.addEventListener('lextory:library-updated',()=>{renderBooks();filterBooks();});
- const list=$('book-list');if(list)new MutationObserver(renderBooks).observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+ window.addEventListener('lextory:library-rendered',renderBooks);
+ window.addEventListener('lextory:reading-progress-updated',applyProgressUpdate);
  window.addEventListener('storage',e=>{if(e.key===ACTIVITY_KEY){try{data=JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}');}catch(_){}renderTime();}});
  window.addEventListener('lextory:cloud-vocabulary-restored',()=>{if($('dash-stat-words'))$('dash-stat-words').textContent=getWords().length.toLocaleString('es-IE');});
- renderBooks();renderTime();setInterval(renderBooks,45000);
+ renderBooks();renderTime();
 }
 function init(){
  const lib=$('my-library-section'),main=document.querySelector('.library-main');if(!lib||!main)return;
@@ -167,7 +193,7 @@ function init(){
  aside.append(cloudPanel);
  $('dash-sync-open').onclick=()=>window.LEXTORY_CLOUD?.openAccount?.();
  const obs=new MutationObserver(()=>{layout.classList.toggle('hidden',lib.classList.contains('hidden'));filterBooks();});
- obs.observe(lib,{attributes:true,attributeFilter:['class']});obs.observe($('book-list'),{childList:true,subtree:true});
+ obs.observe(lib,{attributes:true,attributeFilter:['class']});
  const v=$('vocabulary-list');if(v)new MutationObserver(refresh).observe(v,{childList:true,subtree:true,characterData:true});
  document.addEventListener('click',e=>{if(e.target.closest('#save-vocabulary,#clear-vocabulary'))setTimeout(refresh,180);},true);
  window.addEventListener('storage',e=>{if(e.key===KEY)refresh();});

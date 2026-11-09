@@ -262,3 +262,19 @@ body:not(.dark) .catalog-external-note{color:#8b8298}
     box-shadow:0 -7px 24px rgba(46,34,82,.08);
   }
 }
+
+
+/* Navigation and theme hardening — v30 */
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+body.dark .app-sidebar{background:linear-gradient(180deg,#171438,#111630 56%,#0b1027);border-right-color:rgba(174,145,255,.29)}
+body.dark .sidebar-link{color:#d5d5ed}
+body.dark .sidebar-link:not(.active):hover{background:rgba(156,126,255,.1)}
+body:not(.dark) .sidebar-link.active{color:#fff}
+body:not(.dark) .app-header .icon-button{background:#fff;color:#5a487e;border-color:#e1daf2}
+body.dark .app-header .icon-button{background:#1b2340;color:#eee8ff;border-color:rgba(170,155,255,.22)}
+.app-header .icon-button{position:relative;z-index:3;flex:0 0 auto;pointer-events:auto}
+@media(max-width:820px){
+  .sidebar-nav{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .sidebar-link{min-width:0}
+}

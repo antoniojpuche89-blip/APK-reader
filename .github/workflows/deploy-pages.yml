@@ -275,6 +275,228 @@ jobs:
             };
           """
               app_js = app_js[:start] + new_import + app_js[end:]
+
+          # Restore immediate app responsiveness: navigation and theme must not wait for IndexedDB.
+          theme_start = "  function applyTheme(theme = state.theme) {"
+          theme_end = "  function applyEpubTheme() {"
+          if theme_start not in app_js or theme_end not in app_js:
+              raise SystemExit("Could not locate theme controller")
+          theme_pos = app_js.index(theme_start)
+          theme_end_pos = app_js.index(theme_end, theme_pos)
+          new_theme = r"""  function applyTheme(theme = state.theme) {
+            state.theme = theme === 'dark' ? 'dark' : 'light';
+            const dark = state.theme === 'dark';
+            document.body.classList.toggle('dark', dark);
+            document.body.dataset.theme = state.theme;
+            document.documentElement.dataset.theme = state.theme;
+            document.documentElement.style.colorScheme = state.theme;
+            try { localStorage.setItem('lector-theme', state.theme); } catch (_) {}
+            const icon = dark ? '☀' : '☾';
+            const action = dark ? 'Activar modo claro' : 'Activar modo oscuro';
+            for (const id of ['library-theme-button', 'theme-button']) {
+              const button = $(id);
+              if (!button) continue;
+              button.textContent = icon;
+              button.setAttribute('aria-label', action);
+              button.setAttribute('aria-pressed', String(dark));
+              button.title = action;
+            }
+            const themeColor = document.querySelector('meta[name="theme-color"]');
+            if (themeColor) themeColor.content = dark ? '#171925' : '#f6f7fb';
+            try { applyEpubTheme(); } catch (error) { console.warn('No se pudo actualizar el tema del lector:', error); }
+          }
+
+          function toggleTheme() {
+            const current = document.body.classList.contains('dark') ? 'dark' : 'light';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+          }
+
+          // Delegated navigation/theme controls are registered as soon as app.js loads.
+          // They remain responsive while IndexedDB opens or library files are being read.
+          document.addEventListener('click', event => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+            const themeButton = target.closest('#library-theme-button, #theme-button');
+            if (themeButton) {
+              event.preventDefault();
+              toggleTheme();
+              return;
+            }
+            const control = target.closest('#library-tab, #catalog-tab, #vocab-tab, #flashcards-tab, #open-catalog-button, #featured-view-all, #home-catalog-button, #home-flashcards-button');
+            if (!control) return;
+            event.preventDefault();
+            switch (control.id) {
+              case 'library-tab':
+                setMainTab('library');
+                break;
+              case 'catalog-tab':
+              case 'open-catalog-button':
+              case 'featured-view-all':
+              case 'home-catalog-button':
+                setMainTab('catalog');
+                break;
+              case 'vocab-tab':
+                setMainTab('vocabulary');
+                setVocabularyMode('list', false);
+                break;
+              case 'flashcards-tab':
+              case 'home-flashcards-button':
+                setMainTab('vocabulary');
+                startFlashcards();
+                break;
+            }
+          });
+          
+          """
+          app_js = app_js[:theme_pos] + new_theme + app_js[theme_end_pos:]
+
+          # The global delegated handler above replaces these later-bound handlers.
+          for obsolete in [
+              "    $('library-tab').addEventListener('click', () => setMainTab('library'));\n",
+              "    $('catalog-tab').addEventListener('click', () => setMainTab('catalog'));\n",
+              "    $('vocab-tab').addEventListener('click', () => { setMainTab('vocabulary'); setVocabularyMode('list', false); });\n",
+              "    $('flashcards-tab').addEventListener('click', () => { setMainTab('vocabulary'); startFlashcards(); });\n",
+              "    $('open-catalog-button').addEventListener('click', () => setMainTab('catalog'));\n",
+              "    $('featured-view-all').addEventListener('click', () => setMainTab('catalog'));\n",
+              "    $('home-catalog-button').addEventListener('click', () => setMainTab('catalog'));\n",
+              "    $('home-flashcards-button').addEventListener('click', () => { setMainTab('vocabulary'); startFlashcards(); });\n",
+              "    $('theme-button').addEventListener('click', toggleTheme);\n",
+              "    $('library-theme-button').addEventListener('click', toggleTheme);\n",
+          ]:
+              app_js = app_js.replace(obsolete, "")
+
+          # Keep the selected page and the dashboard wrapper in sync immediately.
+          tab_anchor = "    $('flashcards-tab').classList.toggle('active', active === 'vocabulary' && state.flashcardMode === 'cards');"
+          if tab_anchor not in app_js:
+              raise SystemExit("Could not locate main navigation state hook")
+          nav_patch = tab_anchor + """
+              const navState = [
+                ['library-tab', active === 'library'],
+                ['catalog-tab', active === 'catalog'],
+                ['vocab-tab', active === 'vocabulary' && state.flashcardMode === 'list'],
+                ['flashcards-tab', active === 'vocabulary' && state.flashcardMode === 'cards']
+              ];
+              navState.forEach(([id, selected]) => {
+                const node = $(id);
+                if (!node) return;
+                if (selected) node.setAttribute('aria-current', 'page');
+                else node.removeAttribute('aria-current');
+              });
+              const dashboardLayout = $('dash-layout');
+              if (dashboardLayout) dashboardLayout.classList.toggle('hidden', active !== 'library');"""
+          app_js = app_js.replace(tab_anchor, nav_patch, 1)
+
+          # Notify the dashboard only after the library DOM has been refreshed.
+          empty_anchor = "      list.appendChild(empty);\n      if (!skipCoverHydration) hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));"
+          empty_replacement = """      list.appendChild(empty);
+                window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: 0 } }));
+                if (!skipCoverHydration) scheduleCoverHydration();"""
+          if empty_anchor not in app_js:
+              raise SystemExit("Could not locate empty-library render hook")
+          app_js = app_js.replace(empty_anchor, empty_replacement, 1)
+
+          populated_anchor = "    if (!skipCoverHydration) hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));"
+          populated_replacement = """    window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: state.books.length } }));
+                if (!skipCoverHydration) scheduleCoverHydration();"""
+          if populated_anchor not in app_js:
+              raise SystemExit("Could not locate populated-library render hook")
+          app_js = app_js.replace(populated_anchor, populated_replacement, 1)
+
+          # Hydrate at most two covers per idle batch so large libraries don't block startup.
+          hydrate_start = "  async function hydrateExistingCovers() {"
+          hydrate_end = "\n\n  function setMainTab(tab) {"
+          if hydrate_start not in app_js or hydrate_end not in app_js:
+              raise SystemExit("Could not locate cover hydration function")
+          hs = app_js.index(hydrate_start)
+          he = app_js.index(hydrate_end, hs)
+          new_hydration = r"""  async function hydrateExistingCovers() {
+            if (state.coversHydrating || !state.db) return;
+            state.coversHydrating = true;
+            let changed = false;
+            let hasMore = false;
+            try {
+              const missing = state.books.filter(book => !book.coverDataUrl && book.blob);
+              hasMore = missing.length > 2;
+              for (const book of missing.slice(0, 2)) {
+                try {
+                  const coverDataUrl = await extractBookCover(book.blob, book.format);
+                  if (coverDataUrl) {
+                    book.coverDataUrl = coverDataUrl;
+                    await putBook(book);
+                    changed = true;
+                  }
+                } catch (error) {
+                  console.info('No se pudo generar la portada de', book.title, error);
+                }
+              }
+            } finally {
+              state.coversHydrating = false;
+              if (changed) await refreshLibrary(true);
+              if (hasMore) setTimeout(scheduleCoverHydration, 1600);
+            }
+          }
+
+          function scheduleCoverHydration() {
+            const run = () => hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));
+            if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 5000 });
+            else setTimeout(run, 1400);
+          }"""
+          app_js = app_js[:hs] + new_hydration + app_js[he:]
+
+          # Persisted reading progress is sent to the dashboard without another IndexedDB scan.
+          save_anchor = """    state.saveTimer = setTimeout(async () => {
+      try { await putBook(state.currentBook); } catch (error) { console.warn('No se pudo guardar el progreso', error); }
+    }, 350);"""
+          save_replacement = """    const targetBook = state.currentBook;
+            const targetBookId = targetBook.id;
+            state.saveTimer = setTimeout(async () => {
+              try {
+                await putBook(targetBook);
+                window.dispatchEvent(new CustomEvent('lextory:reading-progress-updated', {
+                  detail: { bookId: targetBookId, progress: targetBook.progress || 0, lastPage: targetBook.lastPage || 1, updatedAt: targetBook.updatedAt }
+                }));
+              } catch (error) { console.warn('No se pudo guardar el progreso', error); }
+            }, 350);"""
+          if save_anchor not in app_js:
+              raise SystemExit("Could not locate reading progress persistence hook")
+          app_js = app_js.replace(save_anchor, save_replacement, 1)
+
+          # Initialize navigation/theme immediately; wait for IndexedDB only before loading books.
+          init_start = "  async function init() {"
+          init_end = "\n  document.addEventListener('DOMContentLoaded', init);"
+          if init_start not in app_js or init_end not in app_js:
+              raise SystemExit("Could not locate application startup function")
+          is0 = app_js.index(init_start)
+          is1 = app_js.index(init_end, is0)
+          new_init = r"""  async function init() {
+            applyTheme(state.theme);
+            try { bindEvents(); }
+            catch (error) { console.error('No se pudieron enlazar algunos controles de Lextory:', error); }
+            updateTranslationUsage();
+            loadVocabulary();
+
+            try {
+              state.db = await openDatabase();
+              await refreshLibrary();
+            } catch (error) {
+              console.error('No se pudo abrir la biblioteca local:', error);
+              showToast('No se pudo abrir la biblioteca local. Revisa el almacenamiento del navegador.');
+            }
+
+            loadFeaturedBooks();
+            if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+              navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Service worker no disponible', error));
+            }
+          }"""
+          app_js = app_js[:is0] + new_init + app_js[is1:]
+          app_js = app_js.replace(
+              "  document.addEventListener('DOMContentLoaded', init);",
+              "  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });\n  else init();",
+              1
+          )
+
+          # Keep the generated script readable and ensure no duplicate theme/nav listeners remain.
+          app.write_text(app_js)
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
           if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
               app_js = app_js.replace(
