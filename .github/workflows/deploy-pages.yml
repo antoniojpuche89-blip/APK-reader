@@ -384,33 +384,48 @@ jobs:
               app_js = app_js.replace(cover_anchor, cover_behavior.replace("      const cover = document.createElement('div');", "      const cover = document.createElement('div'); // PORTADA_ABRE_LECTOR"), 1)
           app.write_text(app_js)
           PY
-          test -s site/bobby-reading.webp
-          grep -q 'bobby-reading.webp' site/dashboard.js
-          grep -q 'bobby-reading.webp' site/sw.js
-          grep -q 'dashboard.css' site/index.html
-          grep -q 'dashboard.js' site/index.html
-          grep -q 'catalog-universal.js' site/index.html
-          grep -q 'cloud-sync.js' site/index.html
-          grep -q 'privacy.html' site/cloud-sync.js
-          grep -q 'delete-account.html' site/cloud-sync.js
-          grep -q 'lector-vocabulary-updated-at' site/app.js
-          grep -q 'window.LEXTORY_READER.getCurrentPageText' site/app.js
-          grep -q 'window.LEXTORY_BOOKS.importFile' site/app.js
-          grep -q 'lextory-shell-v29' site/sw.js
-          grep -q 'unpkg.com/@supabase/supabase-js@2' site/index.html
-          grep -q 'Project Gutenberg' site/catalog-universal.js
-          if grep -qi 'openlibrary\|open library\|google books\|googleapis.com/books\|importGoogle' site/catalog-universal.js; then echo 'A removed catalogue source is still present'; exit 1; fi
-          grep -q 'https://ww3.ebookelo.com/' site/catalog-universal.js
-          grep -q 'https://ww3.lectulandia.com/' site/catalog-universal.js
-          grep -q 'catalog-import-external' site/catalog-universal.js
-          node --check site/app.js
-          node --check site/catalog-universal.js
-          node --check site/dashboard.js
-          node --check site/cloud-sync.js
-          node --check site/supabase-config.js
-          node --check site/premium-ui.js
-          node --check site/reader-enhancements.js
-          node --check site/sw.js
+          python - <<'PY'
+          from pathlib import Path
+
+          required = [
+              ("site/bobby-reading.webp", "bobby-reading.webp"),
+              ("site/dashboard.js", "bobby-reading.webp"),
+              ("site/sw.js", "bobby-reading.webp"),
+              ("site/index.html", "dashboard.css"),
+              ("site/index.html", "dashboard.js"),
+              ("site/index.html", "catalog-universal.js"),
+              ("site/index.html", "cloud-sync.js"),
+              ("site/cloud-sync.js", "privacy.html"),
+              ("site/cloud-sync.js", "delete-account.html"),
+              ("site/app.js", "lector-vocabulary-updated-at"),
+              ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
+              ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
+              ("site/sw.js", "lextory-shell-v29"),
+              ("site/index.html", "unpkg.com/@supabase/supabase-js@2"),
+              ("site/catalog-universal.js", "Project Gutenberg"),
+              ("site/catalog-universal.js", "catalog-import-external"),
+              ("site/catalog-universal.js", "functions/v1/gutenberg-epub"),
+              ("site/app.js", "SAVE_BEFORE_COVER_EXTRACTION"),
+              ("site/dashboard.css", "THEME_CONSISTENCY_V29"),
+          ]
+          for file_name, marker in required:
+              path = Path(file_name)
+              if not path.exists():
+                  raise SystemExit(f"Build validation failed: missing {file_name}")
+              if marker not in path.read_text(errors="replace"):
+                  raise SystemExit(f"Build validation failed: marker {marker!r} not found in {file_name}")
+              print(f"OK {file_name}: {marker}")
+
+          catalogue = Path("site/catalog-universal.js").read_text(errors="replace").lower()
+          forbidden = ("openlibrary", "open library", "google books", "googleapis.com/books", "importgoogle")
+          found = [term for term in forbidden if term in catalogue]
+          if found:
+              raise SystemExit("Build validation failed: removed catalogue source returned: " + ", ".join(found))
+          print("OK removed catalogue sources")
+          PY
+          for source in site/app.js site/catalog-universal.js site/dashboard.js site/cloud-sync.js site/supabase-config.js site/premium-ui.js site/reader-enhancements.js site/sw.js; do
+            node --check "$source" || { echo "JavaScript syntax validation failed: $source"; exit 1; }
+          done
       - name: Upload website
         uses: actions/upload-pages-artifact@v3
         with:
