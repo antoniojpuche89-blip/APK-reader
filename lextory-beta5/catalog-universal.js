@@ -614,6 +614,5 @@
     document.head.appendChild(style);
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
-  else bind();
+  bind();
 })();

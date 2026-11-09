@@ -46,7 +46,7 @@ function filterBooks(){
    if(!badge){badge=document.createElement('span');badge.className='dash-status';cover.appendChild(badge);}
    badge.className='dash-status'+(pct>=100?' done':pct===0?' pending':'');
    badge.textContent=pct>=100?'Completado':pct>0?'Leyendo':'Pendiente';
-   const hasStoredFile=Boolean(row&&row.blob&&Number(row.blob.size||0)>0);
+   const hasStoredFile=Boolean(row&&row.hasBlob&&Number(row.size||0)>0);
    let downloadBadge=cover.querySelector('.dash-download-status');
    if(hasStoredFile&&!downloadBadge){
     downloadBadge=document.createElement('span');
@@ -85,7 +85,6 @@ function initReadingStats(){
   if($('dash-stat-minutes'))$('dash-stat-minutes').textContent=Math.floor(data.totalSeconds/60).toLocaleString('es-IE');
   const s=streak();if($('dash-stat-streak'))$('dash-stat-streak').textContent=s+(s===1?' día':' días');
  }
- let renderBooksPromise=null;
  function updateBookStats(){
   const rows=Array.from(localBookRows.values());
   const completed=rows.filter(b=>Number(b.progress||0)>=100).length;
@@ -94,28 +93,12 @@ function initReadingStats(){
   if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent=rows.length+' en biblioteca';
   if($('dash-stats-note'))$('dash-stats-note').textContent=activeBooks+' '+(activeBooks===1?'libro en lectura':'libros en lectura')+' · Tiempo y racha registrados en este dispositivo desde esta actualización.';
  }
- async function renderBooks(){
-  if(renderBooksPromise)return renderBooksPromise;
-  renderBooksPromise=(async()=>{
-   try{
-    if(window.LEXTORY_BOOKS?.waitForDatabase)await window.LEXTORY_BOOKS.waitForDatabase();
-    let rows=[];
-    if(window.LEXTORY_BOOKS?.getAll)rows=await window.LEXTORY_BOOKS.getAll();
-    else{
-     const req=indexedDB.open(DB_NAME,1);
-     const db=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error('Biblioteca ocupada'));});
-     if(!db.objectStoreNames.contains('books')){db.close();return;}
-     const tx=db.transaction('books','readonly'),get=tx.objectStore('books').getAll();
-     rows=await new Promise((resolve,reject)=>{get.onsuccess=()=>resolve(get.result||[]);get.onerror=()=>reject(get.error);});
-     db.close();
-    }
-    localBookRows=new Map((rows||[]).map(row=>[String(row.id),row]));
-    filterBooks();
-    updateBookStats();
-   }catch(error){console.warn('Lextory stats:',error);if($('dash-stat-books-sub'))$('dash-stat-books-sub').textContent='No disponible';}
-   finally{renderBooksPromise=null;}
-  })();
-  return renderBooksPromise;
+ function renderBooks(event){
+  const summaries=event&&event.detail&&Array.isArray(event.detail.books)?event.detail.books:null;
+  if(!summaries)return;
+  localBookRows=new Map(summaries.map(row=>[String(row.id),row]));
+  filterBooks();
+  updateBookStats();
  }
  function applyProgressUpdate(event){
   const detail=event.detail||{};
@@ -150,7 +133,7 @@ function initReadingStats(){
  window.addEventListener('lextory:reading-progress-updated',applyProgressUpdate);
  window.addEventListener('storage',e=>{if(e.key===ACTIVITY_KEY){try{data=JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'{}');}catch(_){}renderTime();}});
  window.addEventListener('lextory:cloud-vocabulary-restored',()=>{if($('dash-stat-words'))$('dash-stat-words').textContent=getWords().length.toLocaleString('es-IE');});
- renderBooks();renderTime();
+ renderTime();
 }
 function init(){
  const lib=$('my-library-section'),main=document.querySelector('.library-main');if(!lib||!main)return;
@@ -199,5 +182,5 @@ function init(){
  window.addEventListener('storage',e=>{if(e.key===KEY)refresh();});
  refresh();filterBooks();initReadingStats();
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+init();
 })();

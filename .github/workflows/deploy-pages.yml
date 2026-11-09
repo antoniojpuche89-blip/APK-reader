@@ -68,12 +68,24 @@ jobs:
           s = s.replace('si el navegador bloquea la importación automática, se abre la descarga para que puedas importarla manualmente.', 'los EPUB compatibles se guardan directamente en Mi Biblioteca.')
           s = s.replace('Buscar título o autor…', 'Buscar en Project Gutenberg: título o autor…')
           s = s.replace('Project Gutenberg y encuentra tu próxima lectura.', 'Project Gutenberg y encuentra tu próxima lectura.')
-          extras = '''\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud-sync.js"></script>\n  <script src="premium-ui.js"></script>\n  <script src="reader-enhancements.js"></script>'''
+          # Reader engines are fetched on demand, not during first paint.
+          for source in [
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+              "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+              "https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js",
+          ]:
+              s = s.replace('<script src="' + source + '"></script>', '')
+          extras = '''\n  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script defer src="supabase-config.js"></script>\n  <script defer src="cloud-sync.js"></script>\n  <script defer src="premium-ui.js"></script>\n  <script defer src="reader-enhancements.js"></script>'''
           if 'cloud-sync.js' not in s:
               s = s.replace('<script src="dashboard.js"></script>', '<script src="dashboard.js"></script>' + extras)
           p.write_text(s)
           app = Path('site/app.js')
           app_js = app.read_text()
+          if "ensureExternalScript(key, sources, ready)" not in app_js:
+              dependency_anchor = "  function openDatabase() {"
+              if dependency_anchor not in app_js:
+                  raise SystemExit("Could not locate lazy reader dependency hook")
+              app_js = app_js.replace(dependency_anchor, "  const externalScriptPromises = Object.create(null);\n  function ensureExternalScript(key, sources, ready) {\n    if (ready()) return Promise.resolve();\n    if (externalScriptPromises[key]) return externalScriptPromises[key];\n    externalScriptPromises[key] = new Promise((resolve, reject) => {\n      let index = 0;\n      const trySource = () => {\n        if (ready()) { resolve(); return; }\n        if (index >= sources.length) {\n          delete externalScriptPromises[key];\n          reject(new Error('No se pudo cargar el componente de lectura. Comprueba tu conexión e inténtalo de nuevo.'));\n          return;\n        }\n        const script = document.createElement('script');\n        script.src = sources[index++];\n        script.async = true;\n        script.dataset.lextoryDependency = key;\n        script.onload = () => ready() ? resolve() : trySource();\n        script.onerror = trySource;\n        document.head.appendChild(script);\n      };\n      trySource();\n    });\n    return externalScriptPromises[key];\n  }\n  const ensurePdfJs = () => ensureExternalScript('pdfjs', [\n    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',\n    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'\n  ], () => Boolean(window.pdfjsLib));\n  const ensureJsZip = () => ensureExternalScript('jszip', [\n    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',\n    'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'\n  ], () => Boolean(window.JSZip));\n  const ensureEpubJs = () => ensureExternalScript('epubjs', [\n    'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js',\n    'https://unpkg.com/epubjs@0.3.93/dist/epub.min.js'\n  ], () => typeof window.ePub === 'function');\n\n" + dependency_anchor, 1)
           stamp = "    localStorage.setItem(VOCABULARY_KEY, JSON.stringify(state.vocabulary));"
           if "lector-vocabulary-updated-at" not in app_js:
               if stamp not in app_js:
@@ -389,15 +401,13 @@ jobs:
           # Notify the dashboard only after the library DOM has been refreshed.
           empty_anchor = "      list.appendChild(empty);\n      if (!skipCoverHydration) hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));"
           empty_replacement = """      list.appendChild(empty);
-                window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: 0 } }));
-                if (!skipCoverHydration) scheduleCoverHydration();"""
+                window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: 0, books: [] } }));"""
           if empty_anchor not in app_js:
               raise SystemExit("Could not locate empty-library render hook")
           app_js = app_js.replace(empty_anchor, empty_replacement, 1)
 
           populated_anchor = "    if (!skipCoverHydration) hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));"
-          populated_replacement = """    window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: state.books.length } }));
-                if (!skipCoverHydration) scheduleCoverHydration();"""
+          populated_replacement = """    window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: state.books.length, books: state.books.map(book => ({ id: String(book.id), title: book.title, fileName: book.fileName, format: book.format, progress: Number(book.progress) || 0, lastPage: Number(book.lastPage) || 1, updatedAt: book.updatedAt || book.addedAt, size: Number(book.blob && book.blob.size) || 0, hasBlob: Boolean(book.blob && Number(book.blob.size || 0) > 0) })) } }));"""
           if populated_anchor not in app_js:
               raise SystemExit("Could not locate populated-library render hook")
           app_js = app_js.replace(populated_anchor, populated_replacement, 1)
@@ -423,6 +433,15 @@ jobs:
                   if (coverDataUrl) {
                     book.coverDataUrl = coverDataUrl;
                     await putBook(book);
+                    const card = Array.from($('book-list')?.querySelectorAll('.book-card') || []).find(node => node.dataset.bookId === String(book.id));
+                    const cover = card?.querySelector('.book-cover-mini');
+                    if (cover) {
+                      const image = document.createElement('img');
+                      image.src = coverDataUrl;
+                      image.alt = 'Portada de ' + (book.title || 'libro');
+                      image.loading = 'lazy';
+                      cover.replaceChildren(image);
+                    }
                     changed = true;
                   }
                 } catch (error) {
@@ -431,8 +450,7 @@ jobs:
               }
             } finally {
               state.coversHydrating = false;
-              if (changed) await refreshLibrary(true);
-              if (hasMore) setTimeout(scheduleCoverHydration, 1600);
+              if (hasMore) setTimeout(scheduleCoverHydration, 1800);
             }
           }
 
@@ -481,7 +499,8 @@ jobs:
               showToast('No se pudo abrir la biblioteca local. Revisa el almacenamiento del navegador.');
             }
 
-            loadFeaturedBooks();
+            if ('requestIdleCallback' in window) requestIdleCallback(() => loadFeaturedBooks(), { timeout: 4000 });
+            else setTimeout(() => loadFeaturedBooks(), 1200);
             if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
               navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Service worker no disponible', error));
             }
@@ -489,11 +508,21 @@ jobs:
           app_js = app_js[:is0] + new_init + app_js[is1:]
           app_js = app_js.replace(
               "  document.addEventListener('DOMContentLoaded', init);",
-              "  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });\n  else init();",
+              "  init();",
               1
           )
 
           # Keep the generated script readable and ensure no duplicate theme/nav listeners remain.
+          lazy_dependencies = [
+              ("    if (!window.JSZip || !file) return null;", "    if (!file) return null;\\n    await ensureJsZip();"),
+              ("    if (!window.pdfjsLib || !file) return null;", "    if (!file) return null;\\n    await ensurePdfJs();"),
+              ("  async function openPdf(book) {\\n    if (!window.pdfjsLib) throw new Error('PDF.js no está disponible.');", "  async function openPdf(book) {\\n    await ensurePdfJs();"),
+              ("  async function openEpub(book) {\\n    if (typeof window.ePub !== 'function') throw new Error('El lector EPUB no está disponible.');", "  async function openEpub(book) {\\n    await ensureEpubJs();"),
+          ]
+          for old, new in lazy_dependencies:
+              if old not in app_js:
+                  raise SystemExit("Could not locate lazy reader dependency call: " + old[:60])
+              app_js = app_js.replace(old, new, 1)
           app.write_text(app_js)
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
           if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
@@ -645,7 +674,7 @@ jobs:
               ("site/app.js", "lector-vocabulary-updated-at"),
               ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
               ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
-              ("site/sw.js", "lextory-shell-v30"),
+              ("site/sw.js", "lextory-shell-v31"),
               ("site/index.html", "unpkg.com/@supabase/supabase-js@2"),
               ("site/catalog-universal.js", "Project Gutenberg"),
               ("site/catalog-universal.js", "catalog-import-external"),
@@ -655,6 +684,9 @@ jobs:
               ("site/app.js", "lextory:reading-progress-updated"),
               ("site/app.js", "document.addEventListener('click', event =>"),
               ("site/dashboard.js", "lextory:library-rendered"),
+              ("site/app.js", "ensureExternalScript(key, sources, ready)"),
+              ("site/app.js", "detail: { count: state.books.length, books:"),
+              ("site/dashboard.js", "const summaries=event&&event.detail&&Array.isArray(event.detail.books)?event.detail.books:null"),
           ]
           image_asset = Path("site/bobby-reading.webp")
           if not image_asset.is_file() or image_asset.stat().st_size == 0:
