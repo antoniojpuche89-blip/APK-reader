@@ -834,7 +834,7 @@ jobs:
               ("site/app.js", "lector-vocabulary-updated-at"),
               ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
               ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
-              ("site/sw.js", "lextory-shell-v33"),
+              ("site/sw.js", "lextory-shell-v34"),
               ("site/app.js", "localReaderAsset('epub.min.js')"),
               ("site/app.js", "setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000)"),
               ("site/app.js", "getSummaries = async () =>"),
