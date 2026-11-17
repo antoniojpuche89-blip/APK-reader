@@ -677,80 +677,80 @@ jobs:
           if loader_start < 0 or loader_end < 0:
               raise SystemExit("Could not locate the reader dependency loader boundaries")
           reader_loader = r"""  const externalScriptPromises = Object.create(null);
-  function ensureExternalScript(key, sources, ready, onReady) {
-    if (ready()) {
-      try { if (onReady) onReady(); } catch (error) { console.warn('No se pudo configurar el motor de lectura:', error); }
-      return Promise.resolve();
-    }
-    if (externalScriptPromises[key]) return externalScriptPromises[key];
-
-    const pending = (async () => {
-      let lastError = null;
-      for (const source of sources) {
-        try {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            let settled = false;
-            const finish = error => {
-              if (settled) return;
-              settled = true;
-              clearTimeout(timer);
-              script.onload = null;
-              script.onerror = null;
-              if (error) {
-                script.remove();
-                reject(error);
-              } else {
-                resolve();
+            function ensureExternalScript(key, sources, ready, onReady) {
+              if (ready()) {
+                try { if (onReady) onReady(); } catch (error) { console.warn('No se pudo configurar el motor de lectura:', error); }
+                return Promise.resolve();
               }
-            };
-            const timer = setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000);
-            script.src = source;
-            script.async = true;
-            script.dataset.lextoryDependency = key;
-            script.onload = () => finish(ready() ? null : new Error('El recurso se cargó sin inicializar ' + key));
-            script.onerror = () => finish(new Error('No se pudo cargar ' + source));
-            document.head.appendChild(script);
-          });
-          if (!ready()) throw new Error('El motor ' + key + ' no quedó disponible.');
-          if (onReady) onReady();
-          return true;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-      throw new Error('No se pudo cargar el motor ' + key + '. Comprueba tu conexión e inténtalo de nuevo.' + (lastError && lastError.message ? ' (' + lastError.message + ')' : ''));
-    })();
+              if (externalScriptPromises[key]) return externalScriptPromises[key];
 
-    externalScriptPromises[key] = pending;
-    pending.catch(() => {
-      if (externalScriptPromises[key] === pending) delete externalScriptPromises[key];
-    });
-    return pending;
-  }
+              const pending = (async () => {
+                let lastError = null;
+                for (const source of sources) {
+                  try {
+                    await new Promise((resolve, reject) => {
+                      const script = document.createElement('script');
+                      let settled = false;
+                      const finish = error => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(timer);
+                        script.onload = null;
+                        script.onerror = null;
+                        if (error) {
+                          script.remove();
+                          reject(error);
+                        } else {
+                          resolve();
+                        }
+                      };
+                      const timer = setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000);
+                      script.src = source;
+                      script.async = true;
+                      script.dataset.lextoryDependency = key;
+                      script.onload = () => finish(ready() ? null : new Error('El recurso se cargó sin inicializar ' + key));
+                      script.onerror = () => finish(new Error('No se pudo cargar ' + source));
+                      document.head.appendChild(script);
+                    });
+                    if (!ready()) throw new Error('El motor ' + key + ' no quedó disponible.');
+                    if (onReady) onReady();
+                    return true;
+                  } catch (error) {
+                    lastError = error;
+                  }
+                }
+                throw new Error('No se pudo cargar el motor ' + key + '. Comprueba tu conexión e inténtalo de nuevo.' + (lastError && lastError.message ? ' (' + lastError.message + ')' : ''));
+              })();
 
-  const localReaderAsset = name => new URL('./vendor/' + name, document.baseURI).href;
-  const ensurePdfJs = () => ensureExternalScript('pdfjs', [
-    localReaderAsset('pdf.min.js'),
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
-  ], () => Boolean(window.pdfjsLib), () => {
-    if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = localReaderAsset('pdf.worker.min.js');
-    }
-  });
-  const ensureJsZip = () => ensureExternalScript('jszip', [
-    localReaderAsset('jszip.min.js'),
-    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-    'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
-  ], () => Boolean(window.JSZip));
-  const ensureEpubJs = () => ensureExternalScript('epubjs', [
-    localReaderAsset('epub.min.js'),
-    'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js',
-    'https://unpkg.com/epubjs@0.3.93/dist/epub.min.js'
-  ], () => typeof window.ePub === 'function');
+              externalScriptPromises[key] = pending;
+              pending.catch(() => {
+                if (externalScriptPromises[key] === pending) delete externalScriptPromises[key];
+              });
+              return pending;
+            }
 
-"""
+            const localReaderAsset = name => new URL('./vendor/' + name, document.baseURI).href;
+            const ensurePdfJs = () => ensureExternalScript('pdfjs', [
+              localReaderAsset('pdf.min.js'),
+              'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+              'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+            ], () => Boolean(window.pdfjsLib), () => {
+              if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = localReaderAsset('pdf.worker.min.js');
+              }
+            });
+            const ensureJsZip = () => ensureExternalScript('jszip', [
+              localReaderAsset('jszip.min.js'),
+              'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+              'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
+            ], () => Boolean(window.JSZip));
+            const ensureEpubJs = () => ensureExternalScript('epubjs', [
+              localReaderAsset('epub.min.js'),
+              'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js',
+              'https://unpkg.com/epubjs@0.3.93/dist/epub.min.js'
+            ], () => typeof window.ePub === 'function');
+
+          """
           app_js = app_js[:loader_start] + reader_loader + app_js[loader_end:]
           app_js = app_js.replace(
               "pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';",
