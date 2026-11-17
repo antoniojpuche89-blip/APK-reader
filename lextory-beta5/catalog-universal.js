@@ -3,7 +3,7 @@
 
   const $ = id => document.getElementById(id);
   const GUTENDEX = 'https://gutendex.com/books/';
-  const CACHE_PREFIX = 'lextory-catalog-v4:';
+  const CACHE_PREFIX = 'lextory-catalog-v5:';
   const CACHE_TTL = 8 * 60 * 1000;
   const SOURCE_NAMES = { gutenberg: 'Project Gutenberg' };
   const LANG_NAMES = { en: 'Inglés', es: 'Español', fr: 'Francés', de: 'Alemán', it: 'Italiano', pt: 'Portugués' };
@@ -12,7 +12,7 @@
   let sequence = 0;
   let nextGutenbergUrl = null;
   let activeQuery = '';
-  let activeLanguage = 'en';
+  let activeLanguage = '';
   let activeCacheKey = '';
   let activeTopic = '';
   let renderSequence = 0;
@@ -48,7 +48,7 @@
     });
   }
 
-  async function fetchJson(url, parentSignal, timeoutMs) {
+  async function fetchJson(url, parentSignal, timeoutMs, extraHeaders = {}) {
     const controller = new AbortController();
     let timedOut = false;
     const stop = () => controller.abort();
@@ -56,20 +56,23 @@
       if (parentSignal.aborted) throw abortError();
       parentSignal.addEventListener('abort', stop, { once: true });
     }
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs || 8500);
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs || 12000);
     try {
       const response = await fetch(url, {
-        method: 'GET',
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'no-store',
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store',
         signal: controller.signal,
-        headers: { Accept: 'application/json' }
+        headers: { Accept: 'application/json', ...extraHeaders }
       });
-      if (!response.ok) throw new Error('Respuesta HTTP ' + response.status);
-      return await response.json();
+      if (!response.ok) {
+        const error = new Error('Respuesta HTTP ' + response.status);
+        error.status = response.status;
+        throw error;
+      }
+      const payload = await response.json();
+      if (!payload || !Array.isArray(payload.results)) throw new Error('La respuesta del catálogo no contiene una lista de libros.');
+      return payload;
     } catch (error) {
-      if (timedOut) throw new Error('Tiempo de espera agotado');
+      if (timedOut || (error && error.name === 'AbortError' && !(parentSignal && parentSignal.aborted))) throw new Error('Tiempo de espera agotado');
       if (parentSignal && parentSignal.aborted) throw abortError();
       throw error;
     } finally {
@@ -78,6 +81,31 @@
     }
   }
 
+  async function fetchCatalogJson(url, parentSignal) {
+    const config = window.LEXTORY_SUPABASE_CONFIG || {};
+    const sourceUrl = new URL(url, window.location.href);
+    const query = sourceUrl.searchParams.toString();
+    let proxyError = null;
+    if (config.url && config.publishableKey) {
+      const proxyUrl = config.url.replace(/\/+$/, '') + '/functions/v1/gutenberg-catalog' + (query ? '?' + query : '');
+      try {
+        return await fetchJson(proxyUrl, parentSignal, 11500, { apikey: config.publishableKey });
+      } catch (error) {
+        if (parentSignal && parentSignal.aborted) throw abortError();
+        proxyError = error;
+      }
+    }
+    try {
+      return await fetchJson(sourceUrl.href, parentSignal, 11500);
+    } catch (directError) {
+      if (parentSignal && parentSignal.aborted) throw abortError();
+      const proxyText = proxyError && proxyError.message ? 'Proxy Lextory: ' + proxyError.message + '. ' : '';
+      const directText = directError && directError.message ? directError.message : 'error de red';
+      const error = new Error(proxyText + 'Gutendex directo: ' + directText);
+      error.status = directError && directError.status;
+      throw error;
+    }
+  }
 
 
   function secureUrl(value, hosts) {
@@ -308,8 +336,14 @@
     if (!append && !results.querySelector('.catalog-card')) {
       const empty = document.createElement('div');
       empty.className = 'catalog-empty';
-      empty.innerHTML = '<strong>Estos libros ya están en tu biblioteca</strong><span>En Explorar solo mostramos libros que todavía no has añadido. Busca otra categoría o título.</span>';
-      results.appendChild(empty);
+      if (!books.length) {
+        empty.innerHTML = '<strong>Gutendex no ha devuelto libros con estos filtros</strong><span>Prueba otro idioma o borra la búsqueda. Si no responde, vuelve a intentarlo más tarde.</span><button type="button" class="secondary-button" id="catalog-retry-all">Reintentar búsqueda</button>';
+        results.appendChild(empty);
+        $('catalog-retry-all').addEventListener('click', searchAll);
+      } else {
+        empty.innerHTML = '<strong>Estos libros ya están en tu biblioteca</strong><span>En Explorar solo mostramos libros que todavía no has añadido. Busca otra categoría o título.</span>';
+        results.appendChild(empty);
+      }
     }
     return results.querySelectorAll('.catalog-card').length;
   }
@@ -365,10 +399,10 @@
     else gutParams.set('copyright', 'false');
     if (language) gutParams.set('languages', language);
     if (activeTopic) gutParams.set('topic', activeTopic);
-    gutParams.set('mime_type', 'application/epub+zip');
+    gutParams.set('mime_type', 'application/epub');
 
     try {
-      const data = await fetchJson(GUTENDEX + '?' + gutParams.toString(), controller.signal, 8500);
+      const data = await fetchCatalogJson(GUTENDEX + '?' + gutParams.toString(), controller.signal);
       if (!current()) return;
       const raw = Array.isArray(data.results) ? data.results : [];
       const books = mergeSources([raw.map(normalizeGutenberg)]);
@@ -389,7 +423,8 @@
       const sourceStatus = document.querySelector('.catalog-meta span:last-child');
       if (sourceStatus) sourceStatus.textContent = 'Project Gutenberg no responde';
       const results = $('catalog-results');
-      results.innerHTML = '<div class="catalog-empty"><strong>No hemos podido conectar con Project Gutenberg</strong><span>Comprueba tu conexión o inténtalo de nuevo.</span><button type="button" class="secondary-button" id="catalog-retry-all">Reintentar búsqueda</button></div>';
+      const diagnostic = String(error && error.message ? error.message : 'Error de red').replace(/[<>&"]/g, '');
+      results.innerHTML = '<div class="catalog-empty"><strong>No hemos podido conectar con Project Gutenberg</strong><span>' + diagnostic + '. Puedes reintentar ahora o volver a probar más tarde.</span><button type="button" class="secondary-button" id="catalog-retry-all">Reintentar búsqueda</button></div>';
       $('catalog-retry-all').addEventListener('click', searchAll);
     }
   }
@@ -401,7 +436,7 @@
     const button = $('catalog-more');
     button.disabled = true; button.textContent = 'Cargando…';
     try {
-      const data = await fetchJson(nextGutenbergUrl, controller.signal, 8500);
+      const data = await fetchCatalogJson(nextGutenbergUrl, controller.signal);
       if (requestId !== sequence || controller.signal.aborted) return;
       const books = (Array.isArray(data.results) ? data.results : []).map(normalizeGutenberg);
       const visibleCount = await renderBooks(mergeSources([books]), true);
@@ -600,6 +635,8 @@
       catalogIntro.insertAdjacentElement('afterend', externalSources);
     }
 
+    const languageSelect = $('catalog-language');
+    if (languageSelect) languageSelect.value = '';
     const input = $('catalog-search');
     if (input) input.placeholder = 'Buscar en Project Gutenberg: título o autor…';
 

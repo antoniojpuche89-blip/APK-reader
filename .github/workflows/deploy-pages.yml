@@ -550,6 +550,105 @@ jobs:
               if old not in app_js:
                   raise SystemExit("Could not locate lazy reader dependency call: " + old[:60])
               app_js = app_js.replace(old, new, 1)
+          # Fix one-tap PDF selection without changing PDF.js text-layer layout.
+          selection_start = "  function selectWordAtPoint(doc, x, y) {"
+          selection_end = "\n\n  function attachEpubWordSelection(view) {"
+          if selection_start not in app_js or selection_end not in app_js:
+              raise SystemExit("Could not locate word selection helper")
+          selection_pos = app_js.index(selection_start)
+          selection_end_pos = app_js.index(selection_end, selection_pos)
+          word_selector = r"""  function selectWordAtPoint(doc, x, y) {
+            try {
+              const layer = doc.getElementById('pdf-text-layer') || doc.body;
+              let caret = typeof doc.caretRangeFromPoint === 'function' ? doc.caretRangeFromPoint(x, y) : null;
+              if (!caret && typeof doc.caretPositionFromPoint === 'function') {
+                const position = doc.caretPositionFromPoint(x, y);
+                if (position) { caret = doc.createRange(); caret.setStart(position.offsetNode, position.offset); caret.collapse(true); }
+              }
+              if (!caret || caret.startContainer.nodeType !== Node.TEXT_NODE || !layer.contains(caret.startContainer)) return '';
+
+              const walker = doc.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
+              const segments = [];
+              let stream = '', previousRect = null, current;
+              while ((current = walker.nextNode())) {
+                const value = current.nodeValue || '';
+                if (!value) continue;
+                const range = doc.createRange();
+                range.selectNodeContents(current);
+                const rect = range.getBoundingClientRect();
+                if (previousRect && rect.width > 0 && rect.height > 0) {
+                  const fontSize = parseFloat(doc.defaultView.getComputedStyle(current.parentElement).fontSize) || 12;
+                  const verticalGap = Math.abs(rect.top - previousRect.top);
+                  const horizontalGap = rect.left - previousRect.right;
+                  if (verticalGap > Math.max(3, fontSize * 0.55)) stream += '\n';
+                  else if (horizontalGap > Math.max(2, fontSize * 0.28)) stream += ' ';
+                }
+                const start = stream.length;
+                stream += value;
+                segments.push({ node: current, start, end: stream.length });
+                if (rect.width > 0 && rect.height > 0) previousRect = rect;
+              }
+              const segment = segments.find(item => item.node === caret.startContainer);
+              if (!segment) return '';
+              let index = Math.min(segment.start + caret.startOffset, segment.end - 1);
+              const isWord = char => !!char && /[\p{L}\p{M}\p{N}'’\-]/u.test(char);
+              if (!isWord(stream[index]) && index > segment.start && isWord(stream[index - 1])) index--;
+              else if (!isWord(stream[index]) && isWord(stream[index + 1])) index++;
+              if (!isWord(stream[index])) return '';
+              let start = index, end = index + 1;
+              while (start > 0 && isWord(stream[start - 1])) start--;
+              while (end < stream.length && isWord(stream[end])) end++;
+              const startSegment = segments.find(item => start >= item.start && start < item.end);
+              const endSegment = segments.find(item => end > item.start && end <= item.end);
+              if (!startSegment || !endSegment) return '';
+              const wordRange = doc.createRange();
+              wordRange.setStart(startSegment.node, start - startSegment.start);
+              wordRange.setEnd(endSegment.node, end - endSegment.start);
+              const word = wordRange.toString().replace(/\s+/g, ' ').trim();
+              if (!word) return '';
+              const selection = doc.defaultView && doc.defaultView.getSelection();
+              if (!selection) return word;
+              selection.removeAllRanges();
+              selection.addRange(wordRange);
+              return word;
+            } catch (error) { console.debug('No se pudo seleccionar la palabra pulsada:', error); return ''; }
+          }"""
+          app_js = app_js[:selection_pos] + word_selector + app_js[selection_end_pos:]
+
+          pdf_open_old = "  async function openPdf(book) {\n    await ensurePdfJs();"
+          pdf_open_new = "  async function openPdf(book) {\n    $('reader-screen').classList.add('pdf-reading');\n    await ensurePdfJs();"
+          if pdf_open_old not in app_js: raise SystemExit("Could not locate PDF open function")
+          app_js = app_js.replace(pdf_open_old, pdf_open_new, 1)
+
+          epub_open_old = "  async function openEpub(book) {\n    await ensureEpubJs();"
+          epub_open_new = "  async function openEpub(book) {\n    $('reader-screen').classList.remove('pdf-reading');\n    await ensureEpubJs();"
+          if epub_open_old not in app_js: raise SystemExit("Could not locate EPUB open function")
+          app_js = app_js.replace(epub_open_old, epub_open_new, 1)
+
+          reset_anchor = "    state.epubCurrentLocation = null;"
+          if "classList.remove('pdf-reading')" not in app_js:
+              if reset_anchor not in app_js: raise SystemExit("Could not locate reader reset function")
+              app_js = app_js.replace(reset_anchor, reset_anchor + "\n    $('reader-screen').classList.remove('pdf-reading');", 1)
+
+          pdf_click_old = """    $('pdf-text-layer').addEventListener('click', event => { const selection = window.getSelection(); const selected = selection?.toString().trim(); const previousTap = selection?.anchorNode?.parentElement?.closest?.('.lector-word-highlight'); if (selected && !previousTap) return; const word = selectWordAtPoint(document, event.clientX, event.clientY); if (word) showSelection(word); });"""
+          pdf_click_new = """    $('pdf-text-layer').addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      window.getSelection()?.removeAllRanges();
+      clearSelection();
+    }, true);
+    $('pdf-text-layer').addEventListener('click', event => {
+      const selected = window.getSelection()?.toString().trim();
+      if (selected) { showSelection(selected); return; }
+      const word = selectWordAtPoint(document, event.clientX, event.clientY);
+      if (word) showSelection(word);
+    });"""
+          if pdf_click_old not in app_js: raise SystemExit("Could not locate PDF selection click handler")
+          app_js = app_js.replace(pdf_click_old, pdf_click_new, 1)
+
+          style_path = Path('site/styles.css')
+          style_text = style_path.read_text()
+          style_text += "\n/* PDF text stays clickable; page-turn overlays are disabled in PDF mode. */\n.reader-screen.pdf-reading .page-turn-zone{display:none!important;pointer-events:none!important}\n.reader-screen.pdf-reading .pdf-viewer .textLayer{z-index:2}\n"
+          style_path.write_text(style_text)
           app.write_text(app_js)
           delete_anchor = "        await deleteBookRecord(book.id); await refreshLibrary(); showToast('Libro eliminado de tu biblioteca.');"
           if delete_anchor in app_js and "detail: { deletedBookId: book.id }" not in app_js:
@@ -834,13 +933,17 @@ jobs:
               ("site/app.js", "lector-vocabulary-updated-at"),
               ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
               ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
-              ("site/sw.js", "lextory-shell-v34"),
+              ("site/sw.js", "lextory-shell-v35"),
               ("site/app.js", "localReaderAsset('epub.min.js')"),
               ("site/app.js", "setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000)"),
               ("site/app.js", "getSummaries = async () =>"),
               ("site/catalog-universal.js", "localBookRowsCache"),
               ("site/index.html", "unpkg.com/@supabase/supabase-js@2"),
               ("site/catalog-universal.js", "Project Gutenberg"),
+              ("site/catalog-universal.js", "gutenberg-catalog"),
+              ("site/catalog-universal.js", "fetchCatalogJson"),
+              ("site/app.js", "pdf-reading"),
+              ("site/styles.css", "pdf-reading .page-turn-zone"),
               ("site/catalog-universal.js", "catalog-import-external"),
               ("site/catalog-universal.js", "functions/v1/gutenberg-epub"),
               ("site/app.js", "Save the EPUB/PDF before attempting any heavy cover extraction."),
