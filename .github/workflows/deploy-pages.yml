@@ -848,7 +848,7 @@ jobs:
               ("site/app.js", "lextory:reading-progress-updated"),
               ("site/app.js", "document.addEventListener('click', event =>"),
               ("site/dashboard.js", "lextory:library-rendered"),
-              ("site/app.js", "ensureExternalScript(key, sources, ready)"),
+              ("site/app.js", "function ensureExternalScript(key, sources, ready, onReady)"),
               ("site/app.js", "detail: { count: state.books.length, books:"),
               ("site/dashboard.js", "const summaries=event&&event.detail&&Array.isArray(event.detail.books)?event.detail.books:null"),
           ]
