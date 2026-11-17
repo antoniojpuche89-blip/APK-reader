@@ -51,6 +51,22 @@ jobs:
           cp lextory-beta6/bobby-reading.webp site/bobby-reading.webp
           cp lextory-beta6/privacy.html site/privacy.html
           cp lextory-beta6/delete-account.html site/delete-account.html
+          # Pin and bundle reader engines locally. They are loaded only when a book is opened.
+          mkdir -p site/vendor
+          curl -fLsS --retry 3 --retry-all-errors --connect-timeout 15 --max-time 90 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" -o site/vendor/pdf.min.js
+          curl -fLsS --retry 3 --retry-all-errors --connect-timeout 15 --max-time 90 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" -o site/vendor/pdf.worker.min.js
+          curl -fLsS --retry 3 --retry-all-errors --connect-timeout 15 --max-time 90 "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" -o site/vendor/jszip.min.js
+          curl -fLsS --retry 3 --retry-all-errors --connect-timeout 15 --max-time 90 "https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js" -o site/vendor/epub.min.js
+          test -s site/vendor/pdf.min.js
+          test -s site/vendor/pdf.worker.min.js
+          test -s site/vendor/jszip.min.js
+          test -s site/vendor/epub.min.js
+          cat > site/vendor/README-THIRD-PARTY.txt <<'EOF'
+          PDF.js 3.11.174 — Apache-2.0 — https://github.com/mozilla/pdf.js
+          JSZip 3.10.1 — MIT — https://github.com/Stuk/jszip
+          epub.js 0.3.93 — BSD-2-Clause — https://github.com/futurepress/epub.js
+          These pinned reader engines are loaded on demand by Lextory.
+          EOF
           python3 - <<'PY'
           from pathlib import Path
           p = Path('site/index.html')
@@ -75,7 +91,7 @@ jobs:
               "https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js",
           ]:
               s = s.replace('<script src="' + source + '"></script>', '')
-          extras = '''\n  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script defer src="supabase-config.js"></script>\n  <script defer src="cloud-sync.js"></script>\n  <script defer src="premium-ui.js"></script>\n  <script defer src="reader-enhancements.js"></script>'''
+          extras = '''\n  <script src="supabase-config.js"></script>\n  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2'"></script>\n  <script defer src="cloud-sync.js"></script>\n  <script defer src="premium-ui.js"></script>\n  <script defer src="reader-enhancements.js"></script>'''
           if 'cloud-sync.js' not in s:
               s = s.replace('<script src="dashboard.js"></script>', '<script src="dashboard.js"></script>' + extras)
           p.write_text(s)
@@ -158,7 +174,7 @@ jobs:
                   .replace(/\.(epub|pdf)$/i, '')
                   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-                const existingBooks = await getAllBooks();
+                const existingBooks = state.books.length ? state.books.slice() : await getAllBooks();
                 const duplicate = existingBooks.find(book => {
                   if (!book.blob || !Number(book.blob.size || 0)) return false;
                   if (metadata.sourceKey && metadata.sourceId != null &&
@@ -285,6 +301,17 @@ jobs:
               await waitForLibraryDatabase();
               return refreshLibrary();
             };
+            window.LEXTORY_BOOKS.getSummaries = async () => {
+              await waitForLibraryDatabase();
+              return state.books.map(book => ({
+                id: String(book.id), title: book.title, fileName: book.fileName,
+                sourceKey: book.sourceKey || null, sourceId: book.sourceId == null ? null : String(book.sourceId),
+                format: book.format, size: Number(book.blob && book.blob.size) || 0,
+                hasBlob: Boolean(book.blob && Number(book.blob.size || 0) > 0),
+                progress: Number(book.progress) || 0, lastPage: Number(book.lastPage) || 1,
+                updatedAt: book.updatedAt || book.addedAt
+              }));
+            };
           """
               app_js = app_js[:start] + new_import + app_js[end:]
 
@@ -407,7 +434,7 @@ jobs:
           app_js = app_js.replace(empty_anchor, empty_replacement, 1)
 
           populated_anchor = "    if (!skipCoverHydration) hydrateExistingCovers().catch(error => console.warn('No se pudieron obtener algunas portadas', error));"
-          populated_replacement = """    window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: state.books.length, books: state.books.map(book => ({ id: String(book.id), title: book.title, fileName: book.fileName, format: book.format, progress: Number(book.progress) || 0, lastPage: Number(book.lastPage) || 1, updatedAt: book.updatedAt || book.addedAt, size: Number(book.blob && book.blob.size) || 0, hasBlob: Boolean(book.blob && Number(book.blob.size || 0) > 0) })) } }));"""
+          populated_replacement = """    window.dispatchEvent(new CustomEvent('lextory:library-rendered', { detail: { count: state.books.length, books: state.books.map(book => ({ id: String(book.id), title: book.title, fileName: book.fileName, format: book.format, progress: Number(book.progress) || 0, lastPage: Number(book.lastPage) || 1, updatedAt: book.updatedAt || book.addedAt, sourceKey: book.sourceKey || null, sourceId: book.sourceId == null ? null : String(book.sourceId), size: Number(book.blob && book.blob.size) || 0, hasBlob: Boolean(book.blob && Number(book.blob.size || 0) > 0) })) } }));"""
           if populated_anchor not in app_js:
               raise SystemExit("Could not locate populated-library render hook")
           app_js = app_js.replace(populated_anchor, populated_replacement, 1)
@@ -643,6 +670,93 @@ jobs:
 
           """
           app_js = app_js[:start] + new_download + app_js[end:]
+
+          # Replace the original lazy loader with a bounded loader that prefers local vendor files.
+          loader_start = app_js.find("  const externalScriptPromises = Object.create(null);")
+          loader_end = app_js.find("  function openDatabase() {", loader_start)
+          if loader_start < 0 or loader_end < 0:
+              raise SystemExit("Could not locate the reader dependency loader boundaries")
+          reader_loader = r"""  const externalScriptPromises = Object.create(null);
+  function ensureExternalScript(key, sources, ready, onReady) {
+    if (ready()) {
+      try { if (onReady) onReady(); } catch (error) { console.warn('No se pudo configurar el motor de lectura:', error); }
+      return Promise.resolve();
+    }
+    if (externalScriptPromises[key]) return externalScriptPromises[key];
+
+    const pending = (async () => {
+      let lastError = null;
+      for (const source of sources) {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            let settled = false;
+            const finish = error => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              script.onload = null;
+              script.onerror = null;
+              if (error) {
+                script.remove();
+                reject(error);
+              } else {
+                resolve();
+              }
+            };
+            const timer = setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000);
+            script.src = source;
+            script.async = true;
+            script.dataset.lextoryDependency = key;
+            script.onload = () => finish(ready() ? null : new Error('El recurso se cargó sin inicializar ' + key));
+            script.onerror = () => finish(new Error('No se pudo cargar ' + source));
+            document.head.appendChild(script);
+          });
+          if (!ready()) throw new Error('El motor ' + key + ' no quedó disponible.');
+          if (onReady) onReady();
+          return true;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw new Error('No se pudo cargar el motor ' + key + '. Comprueba tu conexión e inténtalo de nuevo.' + (lastError && lastError.message ? ' (' + lastError.message + ')' : ''));
+    })();
+
+    externalScriptPromises[key] = pending;
+    pending.catch(() => {
+      if (externalScriptPromises[key] === pending) delete externalScriptPromises[key];
+    });
+    return pending;
+  }
+
+  const localReaderAsset = name => new URL('./vendor/' + name, document.baseURI).href;
+  const ensurePdfJs = () => ensureExternalScript('pdfjs', [
+    localReaderAsset('pdf.min.js'),
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+  ], () => Boolean(window.pdfjsLib), () => {
+    if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = localReaderAsset('pdf.worker.min.js');
+    }
+  });
+  const ensureJsZip = () => ensureExternalScript('jszip', [
+    localReaderAsset('jszip.min.js'),
+    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+    'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
+  ], () => Boolean(window.JSZip));
+  const ensureEpubJs = () => ensureExternalScript('epubjs', [
+    localReaderAsset('epub.min.js'),
+    'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js',
+    'https://unpkg.com/epubjs@0.3.93/dist/epub.min.js'
+  ], () => typeof window.ePub === 'function');
+
+"""
+          app_js = app_js[:loader_start] + reader_loader + app_js[loader_end:]
+          app_js = app_js.replace(
+              "pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';",
+              "pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.js', document.baseURI).href;"
+          )
+
                     # A saved IndexedDB record remains successful even if the UI refresh fails.
           refresh_old = "      await refreshLibrary(true);" + chr(10) + "      if ($('file-input')) $('file-input').value = '';"
           refresh_new = "      try { await refreshLibrary(true); } catch (refreshError) { console.warn('Libro guardado, pero no se pudo actualizar la vista:', refreshError); }" + chr(10) + "      if ($('file-input')) $('file-input').value = '';"
@@ -720,7 +834,11 @@ jobs:
               ("site/app.js", "lector-vocabulary-updated-at"),
               ("site/app.js", "window.LEXTORY_READER.getCurrentPageText"),
               ("site/app.js", "window.LEXTORY_BOOKS.importFile"),
-              ("site/sw.js", "lextory-shell-v32"),
+              ("site/sw.js", "lextory-shell-v33"),
+              ("site/app.js", "localReaderAsset('epub.min.js')"),
+              ("site/app.js", "setTimeout(() => finish(new Error('Tiempo de espera al cargar ' + key)), 10000)"),
+              ("site/app.js", "getSummaries = async () =>"),
+              ("site/catalog-universal.js", "localBookRowsCache"),
               ("site/index.html", "unpkg.com/@supabase/supabase-js@2"),
               ("site/catalog-universal.js", "Project Gutenberg"),
               ("site/catalog-universal.js", "catalog-import-external"),
@@ -747,6 +865,12 @@ jobs:
                   raise SystemExit(f"Build validation failed: marker {marker!r} not found in {file_name}")
               print(f"OK {file_name}: {marker}")
 
+          for dependency in ["pdf.min.js", "pdf.worker.min.js", "jszip.min.js", "epub.min.js"]:
+              asset = Path("site/vendor") / dependency
+              if not asset.is_file() or asset.stat().st_size < 1000:
+                  raise SystemExit("Build validation failed: missing or empty vendored dependency " + dependency)
+              print("OK vendored reader engine: " + dependency)
+
           catalogue = Path("site/catalog-universal.js").read_text(errors="replace").lower()
           forbidden = ("openlibrary", "open library", "google books", "googleapis.com/books", "importgoogle")
           found = [term for term in forbidden if term in catalogue]
@@ -754,7 +878,7 @@ jobs:
               raise SystemExit("Build validation failed: removed catalogue source returned: " + ", ".join(found))
           print("OK removed catalogue sources")
           PY
-          for source in site/app.js site/catalog-universal.js site/dashboard.js site/cloud-sync.js site/supabase-config.js site/premium-ui.js site/reader-enhancements.js site/sw.js; do
+          for source in site/app.js site/catalog-universal.js site/dashboard.js site/cloud-sync.js site/supabase-config.js site/premium-ui.js site/reader-enhancements.js site/sw.js site/vendor/pdf.min.js site/vendor/pdf.worker.min.js site/vendor/jszip.min.js site/vendor/epub.min.js; do
             node --check "$source" || { echo "JavaScript syntax validation failed: $source"; exit 1; }
           done
       - name: Upload website

@@ -218,23 +218,52 @@
       .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
 
+  let localBookRowsCache = null;
+
+  function summarizeLocalBookRows(rows) {
+    return (Array.isArray(rows) ? rows : []).map(row => {
+      const size = Number(row && (row.size || (row.blob && row.blob.size)) || 0);
+      return {
+        id: String(row && row.id || ''),
+        title: row && row.title || '',
+        fileName: row && row.fileName || '',
+        sourceKey: row && row.sourceKey || null,
+        sourceId: row && row.sourceId == null ? null : String(row.sourceId),
+        size,
+        hasBlob: Boolean(row && (row.hasBlob || (row.blob && row.blob.size > 0)) && size > 0)
+      };
+    });
+  }
+
+  window.addEventListener('lextory:library-rendered', event => {
+    const rows = event && event.detail && event.detail.books;
+    if (Array.isArray(rows)) localBookRowsCache = summarizeLocalBookRows(rows);
+  });
+
   async function getLocalBookRows() {
+    if (Array.isArray(localBookRowsCache)) return localBookRowsCache;
     try {
-      if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.getAll === 'function') {
-        return await window.LEXTORY_BOOKS.getAll();
+      let rows = [];
+      if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.getSummaries === 'function') {
+        rows = await window.LEXTORY_BOOKS.getSummaries();
+      } else if (window.LEXTORY_BOOKS && typeof window.LEXTORY_BOOKS.getAll === 'function') {
+        rows = await window.LEXTORY_BOOKS.getAll();
+      } else {
+        const db = await openLocalBookDatabase();
+        try {
+          if (!db.objectStoreNames.contains('books')) return [];
+          const tx = db.transaction('books', 'readonly');
+          const request = tx.objectStore('books').getAll();
+          rows = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error || new Error('No se pudo consultar la biblioteca.'));
+          });
+        } finally { db.close(); }
       }
-      const db = await openLocalBookDatabase();
-      try {
-        if (!db.objectStoreNames.contains('books')) return [];
-        const tx = db.transaction('books', 'readonly');
-        const request = tx.objectStore('books').getAll();
-        return await new Promise((resolve, reject) => {
-          request.onsuccess = () => resolve(request.result || []);
-          request.onerror = () => reject(request.error || new Error('No se pudo consultar la biblioteca.'));
-        });
-      } finally { db.close(); }
+      localBookRowsCache = summarizeLocalBookRows(rows);
+      return localBookRowsCache;
     } catch (error) {
-      console.warn('No se pudo consultar la biblioteca local:', error);
+      console.warn('No se pudo consultar el índice local de la biblioteca:', error);
       return [];
     }
   }
@@ -243,7 +272,7 @@
     const id = String(book.id || '').replace(/^gut-/, '');
     const title = normaliseBookKey(book.title);
     return rows.some(row => {
-      if (!row.blob || !Number(row.blob.size || 0)) return false;
+      if (!row.hasBlob || !Number(row.size || 0)) return false;
       if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
       return normaliseBookKey(row.title) === title || normaliseBookKey(row.fileName) === title;
     });
@@ -253,7 +282,7 @@
     const rows = await getLocalBookRows();
     const id = String(book.id || '').replace(/^gut-/, '');
     return rows.find(row => {
-      if (!row.blob || !Number(row.blob.size || 0)) return false;
+      if (!row.hasBlob || !Number(row.size || 0)) return false;
       if (row.sourceKey === 'gutenberg' && String(row.sourceId || '') === id) return true;
       return normaliseBookKey(row.title) === normaliseBookKey(book.title) || normaliseBookKey(row.fileName) === normaliseBookKey(book.title);
     }) || null;
